@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  mementos-mongodb:
+    image: mongo:8.0.10
+    # If you want to expose these ports outside your dev PC, remove the "127.0.0.1:" prefix
+    ports:
+      - "127.0.0.1:27017:27017"
+  
+  mementos-mongodb-seed:
+    image: mongo:8.0.10
+    volumes:
+      - ../mongo_seed:/mongo_seed
+    command:
+      /mongo_seed/import.sh

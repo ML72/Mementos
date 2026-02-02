@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # MongoDB Services - Extended from services/mongodb.yml
+  mementos-mongodb:
+    extends:
+      file: services/mongodb.yml
+      service: mementos-mongodb
+    networks:
+      - mementos-network
+  
+  mementos-mongodb-seed:
+    extends:
+      file: services/mongodb.yml
+      service: mementos-mongodb-seed
+    depends_on:
+      - mementos-mongodb
+    networks:
+      - mementos-network
+
+  # Future services can be added here
+  # Example:
+  # mementos-backend:
+  #   build: ../src/server
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - mementos-mongodb
+  #   networks:
+  #     - mementos-network
+  
+  # mementos-frontend:
+  #   build: ../src/client
+  #   ports:
+  #     - "5173:5173"
+  #   depends_on:
+  #     - mementos-backend
+  #   networks:
+  #     - mementos-network
+
+networks:
+  mementos-network:
+    driver: bridge

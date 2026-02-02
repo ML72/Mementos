@@ -1,0 +1,53 @@
+{
+  "name": "mementos",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.ts",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "npm run dev --prefix src/client",
+    "dev:server": "nodemon src/server/index.ts",
+    "docker:up": "docker-compose -f docker/app.yml up -d",
+    "docker:down": "docker-compose -f docker/app.yml down",
+    "docker:db:up": "docker-compose -f docker/services/mongodb.yml up -d",
+    "docker:db:down": "docker-compose -f docker/services/mongodb.yml down",
+    "install:all": "npm install && cd src/client && npm install && cd ../../",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "cd src/client && npm run build",
+    "build:server": "tsc",
+    "start": "node dist/index.js",
+    "test": "npx jest"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "express-validator": "^7.3.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.1.5",
+    "path": "^0.12.7",
+    "react-router": "^5.3.4",
+    "react-router-dom": "^5.3.4"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
+    "@types/cypress": "^1.1.6",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^25.2.0",
+    "@types/supertest": "^6.0.3",
+    "concurrently": "^9.2.1",
+    "cypress": "^15.9.0",
+    "jest": "^30.2.0",
+    "nodemon": "^3.1.11",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": "20.11.0"
+  }
+}

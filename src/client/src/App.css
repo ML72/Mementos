@@ -1,0 +1,29 @@
+/* CSS Reset - Override user agent stylesheet */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Custom layout styles */
+html, body, #root {
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 100%;
+  background: #fff;
+  /* Remove any overflow-y: auto or scroll */
+  overflow-y: visible;
+}
+
+/* Remove forced height: 100vh from any global container */
+.MuiContainer-root {
+  min-height: 0;
+}
