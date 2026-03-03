@@ -1,5 +1,6 @@
 import { Request, Response, Router } from 'express';
 import { check, validationResult } from 'express-validator';
+import { privateAccess } from '../middleware';
 import { UserService } from '../service';
 import { sendError } from '../util';
 
@@ -33,6 +34,44 @@ router.post('/', [
 
         res.json({ token: result.token });
     } catch(err: any) { 
+        console.error(err.message);
+        sendError(res, 500, 'Server Error - Please try again');
+    }
+});
+
+// @route POST api/users/:id/follow
+// @desc follow a user
+// @access private
+router.post('/:id/follow', privateAccess, async (req: Request, res: Response) => {
+    try {
+        const result = await userService.followUser(req.user!.id, req.params.id);
+        
+        if (!result.success) {
+            sendError(res, 400, result.error || 'Failed to follow user');
+            return;
+        }
+
+        res.json({ msg: 'Successfully followed user' });
+    } catch(err: any) {
+        console.error(err.message);
+        sendError(res, 500, 'Server Error - Please try again');
+    }
+});
+
+// @route POST api/users/:id/unfollow
+// @desc unfollow a user
+// @access private
+router.post('/:id/unfollow', privateAccess, async (req: Request, res: Response) => {
+    try {
+        const result = await userService.unfollowUser(req.user!.id, req.params.id);
+        
+        if (!result.success) {
+            sendError(res, 400, result.error || 'Failed to unfollow user');
+            return;
+        }
+
+        res.json({ msg: 'Successfully unfollowed user' });
+    } catch(err: any) {
         console.error(err.message);
         sendError(res, 500, 'Server Error - Please try again');
     }

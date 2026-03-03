@@ -3,7 +3,7 @@ import path from 'path';
 import { connectDB, setupCSP, setupCORS } from './config';
 import { NODE_ENV, PORT, SECURITY_CSP, SECURITY_CORS_WHITELIST } from './settings';
 
-import { authRoutes, usersRoutes } from './routes';
+import { authRoutes, usersRoutes, notesRoutes } from './routes';
 
 // Init app
 const app: Express = express();
@@ -22,6 +22,7 @@ if (NODE_ENV !== 'test') {
 // Routing for API endpoints
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/notes', notesRoutes);
 
 // Serve static assets in production
 if (NODE_ENV === 'production') {
