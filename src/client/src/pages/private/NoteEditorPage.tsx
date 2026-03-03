@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Container, Typography, Box, Paper, TextField, Button, Stack, Divider 
+  Container, Typography, Box, Paper, TextField, Button, Stack, Divider, CircularProgress
 } from '@mui/material';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
+import { RootState } from '../../store/store';
 import { setNewAlert } from '../../service/alert';
+import { createNote, updateNote, getNoteById } from '../../service/notes';
 import CustomPage from '../../components/layout/CustomPage';
 import SaveIcon from '@mui/icons-material/Save';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -15,17 +17,29 @@ const NoteEditorPage: React.FC = () => {
   
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { token } = useSelector((state: RootState) => state.auth);
 
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(isEditing);
 
   useEffect(() => {
-    if (isEditing) {
-      // Fetch note details if editing and populate states
+    if (isEditing && noteId && token) {
+      const fetchNote = async () => {
+        setLoading(true);
+        const note = await getNoteById(dispatch, noteId);
+        if (note) {
+          setSubject(note.subject);
+          setContent(note.content);
+          setTags(note.tags ? note.tags.join(', ') : '');
+        }
+        setLoading(false);
+      };
+      fetchNote();
     }
-  }, [isEditing, noteId]);
+  }, [isEditing, noteId, dispatch, token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,10 +49,17 @@ const NoteEditorPage: React.FC = () => {
     }
     
     setSubmitting(true);
+    const parsedTags = tags.split(',').map((t) => t.trim()).filter((t) => t.length > 0);
+    const noteData = { subject, content, tags: parsedTags };
+    
     try {
-      // Placeholder for save / update logic
-      setNewAlert(dispatch, { msg: `Note ${isEditing ? 'updated' : 'created'} successfully!`, alertType: 'success' });
-      navigate('/notes');
+      if (isEditing && noteId) {
+        const res = await updateNote(dispatch, noteId, noteData);
+        if (res) navigate('/notes');
+      } else {
+        const res = await createNote(dispatch, noteData);
+        if (res) navigate('/notes');
+      }
     } catch (err: any) {
       setNewAlert(dispatch, { msg: 'Failed to save note', alertType: 'error' });
     } finally {
@@ -70,19 +91,24 @@ const NoteEditorPage: React.FC = () => {
               {isEditing ? 'Edit Note' : 'Create New Note'}
             </Typography>
 
-            <Box component="form" onSubmit={handleSubmit}>
-              <Stack spacing={3}>
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#4B5563', mb: 1 }}>Subject</Typography>
-                  <TextField
-                    fullWidth
-                    placeholder="E.g., The architecture of React Fiber"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    variant="outlined"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                  />
-                </Box>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                <CircularProgress size={40} sx={{ color: '#000' }} />
+              </Box>
+            ) : (
+              <Box component="form" onSubmit={handleSubmit}>
+                <Stack spacing={3}>
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#4B5563', mb: 1 }}>Subject</Typography>
+                    <TextField
+                      fullWidth
+                      placeholder="E.g., The architecture of React Fiber"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      variant="outlined"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                    />
+                  </Box>
                 
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#4B5563', mb: 1 }}>Content</Typography>
@@ -138,6 +164,7 @@ const NoteEditorPage: React.FC = () => {
                 </Box>
               </Stack>
             </Box>
+            )}
           </Paper>
 
         </Container>

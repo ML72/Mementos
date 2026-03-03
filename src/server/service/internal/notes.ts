@@ -72,6 +72,19 @@ class NotesService {
         }
     }
 
+    async getOwnNotes(userId: string): Promise<NoteResult> {
+        try {
+            const notes = await Note.find({
+                creator: userId
+            }).sort({ dateCreated: -1 });
+
+            return { success: true, notes };
+        } catch (error: any) {
+            console.error('Get own notes error:', error.message);
+            return { success: false, error: 'Server error' };
+        }
+    }
+
     async updateNote(userId: string, noteId: string, updateData: UpdateNoteData): Promise<NoteResult> {
         try {
             let note = await Note.findById(noteId);

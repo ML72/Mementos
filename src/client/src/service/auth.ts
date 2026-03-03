@@ -1,13 +1,25 @@
 import axios from 'axios';
 import { setAuth, clearAuth } from '../store/slices/auth';
 import { setNewAlert } from './alert';
+import { store } from '../store/store';
 
-// Helper function to set axios auth header
+// Set up axios interceptor to dynamically attach token from store
+axios.interceptors.request.use((config) => {
+  const token = store.getState().auth.token;
+  if (token) {
+    config.headers['x-auth-token'] = token;
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
+// Helper function to set axios auth header (legacy, now handled by interceptor but kept for compatibility)
 const setAuthHeader = (token: string) => {
   axios.defaults.headers.common['x-auth-token'] = token;
 };
 
-// Helper function to remove axios auth header
+// Helper function to remove axios auth header (legacy, now handled by interceptor but kept for compatibility)
 const removeAuthHeader = () => {
   delete axios.defaults.headers.common['x-auth-token'];
 };

@@ -26,6 +26,25 @@ router.get('/', privateAccess, async (req: Request, res: Response) => {
     }
 });
 
+// @route GET api/notes/my
+// @desc get current user's notes
+// @access private
+router.get('/my', privateAccess, async (req: Request, res: Response) => {
+    try {
+        const result = await notesService.getOwnNotes(req.user!.id);
+        
+        if (!result.success) {
+            sendError(res, 400, result.error || 'Failed to fetch notes');
+            return;
+        }
+
+        res.json(result.notes);
+    } catch(err: any) {
+        console.error(err.message);
+        sendError(res, 500, 'Server Error - Please try again');
+    }
+});
+
 // @route GET api/notes/:id
 // @desc get a note by id
 // @access private

@@ -6,13 +6,13 @@ import {
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store/store';
 import { setNewAlert } from '../../service/alert';
+import { getFeed, createNote } from '../../service/notes';
 import CustomPage from '../../components/layout/CustomPage';
-import axios from 'axios';
 import SendIcon from '@mui/icons-material/Send';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 
 const HomePage: React.FC = () => {
-  const { email, userId, fullName } = useSelector((state: RootState) => state.auth);
+  const { email, userId, fullName, token } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
 
   const [notes, setNotes] = useState<any[]>([]);
@@ -23,21 +23,20 @@ const HomePage: React.FC = () => {
   const [tags, setTags] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchNotes = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get('/api/notes');
-      setNotes(res.data);
-    } catch (err: any) {
-      setNewAlert(dispatch, { msg: 'Failed to load feed', alertType: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchNotes();
-  }, []);
+    const fetchNotes = async () => {
+      setLoading(true);
+      const data = await getFeed(dispatch);
+      if (data) {
+        setNotes(data);
+      }
+      setLoading(false);
+    };
+
+    if (token) {
+      fetchNotes();
+    }
+  }, [dispatch, token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,27 +46,20 @@ const HomePage: React.FC = () => {
     }
     
     setSubmitting(true);
-    try {
-      const tagsArray = tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
-      const res = await axios.post('/api/notes', { subject, content, tags: tagsArray });
-      
-      const newNote = res.data;
+    const tagsArray = tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+    const res = await createNote(dispatch, { subject, content, tags: tagsArray });
+    
+    if (res) {
       // Manually populate creator for immediate UI update
+      const newNote = res;
       newNote.creator = { _id: userId, login: { email }, fullName };
 
       setNotes([newNote, ...notes]);
       setSubject('');
       setContent('');
       setTags('');
-      setNewAlert(dispatch, { msg: 'Insight captured successfully!', alertType: 'success' });
-    } catch (err: any) {
-      setNewAlert(dispatch, { 
-        msg: err.response?.data?.errors?.[0]?.msg || err.response?.data?.msg || 'Failed to create note', 
-        alertType: 'error' 
-      });
-    } finally {
-      setSubmitting(false);
     }
+    setSubmitting(false);
   };
 
   const getInitial = (nameOrEmail?: string | null) => {

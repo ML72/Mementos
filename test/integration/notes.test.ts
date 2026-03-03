@@ -132,6 +132,39 @@ describe('Notes Endpoints Integration', () => {
             expect(deleteRes.statusCode).toEqual(400);
             expect(deleteRes.body.errors[0].msg).toEqual('User not authorized to delete this note');
         });
+
+        it('should get all notes belonging to the current user', async () => {
+            const { token } = await createUserAndGetToken('owner@test.com');
+            const { token: otherToken } = await createUserAndGetToken('other@test.com');
+
+            // Create two notes for owner
+            await request(app)
+                .post('/api/notes')
+                .set('x-auth-token', token)
+                .send({ subject: 'Note 1', content: 'Content 1' });
+            
+            await request(app)
+                .post('/api/notes')
+                .set('x-auth-token', token)
+                .send({ subject: 'Note 2', content: 'Content 2' });
+
+            // Create one note for other
+            await request(app)
+                .post('/api/notes')
+                .set('x-auth-token', otherToken)
+                .send({ subject: 'Other Note', content: 'Other Content' });
+
+            // Fetch owner's notes
+            const res = await request(app)
+                .get('/api/notes/my')
+                .set('x-auth-token', token)
+                .send();
+
+            expect(res.statusCode).toEqual(200);
+            expect(res.body.length).toBe(2);
+            expect(res.body[0].subject).toBe('Note 2'); // sorted by dateCreated desc
+            expect(res.body[1].subject).toBe('Note 1');
+        });
     });
 
     describe('GET /api/notes (Feed)', () => {

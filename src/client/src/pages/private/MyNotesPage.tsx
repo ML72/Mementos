@@ -6,26 +6,42 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { RootState } from '../../store/store';
 import { setNewAlert } from '../../service/alert';
+import { getMyNotes, deleteNote } from '../../service/notes';
 import CustomPage from '../../components/layout/CustomPage';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
 const MyNotesPage: React.FC = () => {
-  const { userId } = useSelector((state: RootState) => state.auth);
+  const { userId, token } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const [notes, setNotes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Placeholder for fetching own notes
-    setNotes([]);
-  }, []);
+    const fetchNotes = async () => {
+      setLoading(true);
+      const data = await getMyNotes(dispatch);
+      if (data) {
+        setNotes(data);
+      }
+      setLoading(false);
+    };
+    
+    if (token) {
+      fetchNotes();
+    }
+  }, [dispatch, token]);
 
-  const handleDelete = (noteId: string) => {
-    // Placeholder delete logic
+  const handleDelete = async (noteId: string) => {
+    if (window.confirm('Are you sure you want to delete this note?')) {
+      const success = await deleteNote(dispatch, noteId);
+      if (success) {
+        setNotes((prevNotes) => prevNotes.filter((n) => n._id !== noteId));
+      }
+    }
   };
 
   const formatDate = (dateString: string) => {

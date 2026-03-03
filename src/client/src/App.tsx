@@ -22,6 +22,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     // Initialize axios headers from persisted Redux state
+    // Now handled by axios interceptor in service/auth.ts
     initializeAuth(token);
   }, [token]);
 
