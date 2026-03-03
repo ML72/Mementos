@@ -12,6 +12,7 @@ const Navbar: React.FC = () => {
   const location = useLocation();
   const dispatch = useDispatch();
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
+  const userId = useSelector((state: RootState) => state.auth.userId);
 
   const [mobileMoreAnchorEl, setMobileMoreAnchorEl] = React.useState<null | HTMLElement>(null);
   const isMobileMenuOpen = Boolean(mobileMoreAnchorEl);
@@ -48,13 +49,20 @@ const Navbar: React.FC = () => {
 
         <Stack direction="row" spacing={2} sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center' }}>
           {isAuthenticated ? (
-            <Button color="inherit" onClick={() => navigate('/home')} sx={{ textTransform: 'none', fontWeight: 600 }}>
-              Dashboard
-            </Button>
+            <>
+              <Button color="inherit" onClick={() => navigate('/notes')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+                Notes
+              </Button>
+              <Button color="inherit" onClick={() => navigate(`/profile/${userId}`)} sx={{ textTransform: 'none', fontWeight: 600 }}>
+                Profile
+              </Button>
+              <Button color="inherit" onClick={() => navigate('/settings')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+                Settings
+              </Button>
+            </>
           ) : (
             <>
-              <Button color="inherit" sx={{ textTransform: 'none', fontWeight: 600 }}>Features</Button>
-              <Button color="inherit" sx={{ textTransform: 'none', fontWeight: 600 }}>Social</Button>
+              <Button color="inherit" onClick={() => navigate('/about')} sx={{ textTransform: 'none', fontWeight: 600 }}>About</Button>
             </>
           )}
         </Stack>
@@ -63,9 +71,14 @@ const Navbar: React.FC = () => {
       {/* Right section: Action Buttons (Desktop view) */}
       <Stack direction="row" spacing={2} sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center' }}>
         {isAuthenticated ? (
-          <Button onClick={handleLogout} variant="outlined" sx={{ textTransform: 'none', fontWeight: 600, borderColor: '#d1d1d1', color: '#000', borderRadius: '20px' }}>
-            Logout
-          </Button>
+          <>
+            <Button onClick={handleLogout} variant="outlined" sx={{ textTransform: 'none', fontWeight: 600, borderColor: '#d1d1d1', color: '#000', borderRadius: '20px' }}>
+              Logout
+            </Button>
+            <Button onClick={() => navigate('/notes/new')} variant="contained" sx={{ textTransform: 'none', fontWeight: 600, backgroundColor: '#000', color: '#fff', borderRadius: '20px', '&:hover': { backgroundColor: '#333' } }}>
+              New Note
+            </Button>
+          </>
         ) : (
           <>
             <Button onClick={() => navigate('/login?tab=login')} variant="outlined" sx={{ textTransform: 'none', fontWeight: 600, borderColor: '#d1d1d1', color: '#000', borderRadius: '20px' }}>Sign in</Button>
@@ -90,11 +103,13 @@ const Navbar: React.FC = () => {
         onClose={handleMobileMenuClose}
       >
         {isAuthenticated ? [
-          <MenuItem key="dashboard" onClick={() => { navigate('/home'); handleMobileMenuClose(); }}>Dashboard</MenuItem>,
+          <MenuItem key="notes" onClick={() => { navigate('/notes'); handleMobileMenuClose(); }}>Notes</MenuItem>,
+          <MenuItem key="profile" onClick={() => { navigate(`/profile/${userId}`); handleMobileMenuClose(); }}>Profile</MenuItem>,
+          <MenuItem key="settings" onClick={() => { navigate('/settings'); handleMobileMenuClose(); }}>Settings</MenuItem>,
+          <MenuItem key="new_note" onClick={() => { navigate('/notes/new'); handleMobileMenuClose(); }}>New Note</MenuItem>,
           <MenuItem key="logout" onClick={handleLogout}>Logout</MenuItem>
         ] : [
-          <MenuItem key="features" onClick={handleMobileMenuClose}>Features</MenuItem>,
-          <MenuItem key="social" onClick={handleMobileMenuClose}>Social</MenuItem>,
+          <MenuItem key="about" onClick={() => { navigate('/about'); handleMobileMenuClose(); }}>About</MenuItem>,
           <MenuItem key="login" onClick={() => { navigate('/login?tab=login'); handleMobileMenuClose(); }}>Sign in</MenuItem>,
           <MenuItem key="signup" onClick={() => { navigate('/login?tab=signup'); handleMobileMenuClose(); }}>Sign up</MenuItem>
         ]}

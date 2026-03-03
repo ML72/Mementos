@@ -2,11 +2,6 @@ import { Schema, model } from 'mongoose';
 import { CONTENT_LIMITS } from '../settings';
 
 const UserSchema = new Schema({
-    fullName: {
-        type: String,
-        required: true,
-        maxlength: 100
-    },
     login: {
         email: {
             type: String,
@@ -29,14 +24,32 @@ const UserSchema = new Schema({
         type: String,
         default: 'USER'
     }],
-    dateCreated: {
-        type: Date,
-        default: Date.now
+    fullName: {
+        type: String,
+        required: true,
+        maxlength: 100
+    },
+    bio: {
+        type: String,
+        maxlength: CONTENT_LIMITS.USER.BIO_MAX_LENGTH,
+        default: ''
     },
     following: [{
         type: Schema.Types.ObjectId,
         ref: 'User'
-    }]
+    }],
+    followers: [{
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+    }],
+    likedNotes: [{
+        type: Schema.Types.ObjectId,
+        ref: 'Note'
+    }],
+    dateCreated: {
+        type: Date,
+        default: Date.now
+    }
 });
 
 const User = model('User', UserSchema);

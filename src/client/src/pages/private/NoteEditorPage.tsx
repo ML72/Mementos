@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Container, Typography, Box, Paper, TextField, Button, Stack, Divider, CircularProgress
+  Container, Typography, Box, Paper, TextField, Button, Stack, Divider, CircularProgress,
+  Tabs, Tab
 } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -8,6 +9,8 @@ import { RootState } from '../../store/store';
 import { setNewAlert } from '../../service/alert';
 import { createNote, updateNote, getNoteById } from '../../service/notes';
 import CustomPage from '../../components/layout/CustomPage';
+import TagInput from '../../components/layout/TagInput';
+import MarkdownViewer from '../../components/layout/MarkdownViewer';
 import SaveIcon from '@mui/icons-material/Save';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
@@ -21,9 +24,10 @@ const NoteEditorPage: React.FC = () => {
 
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
-  const [tags, setTags] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(isEditing);
+  const [tabIndex, setTabIndex] = useState(0);
 
   useEffect(() => {
     if (isEditing && noteId && token) {
@@ -33,7 +37,7 @@ const NoteEditorPage: React.FC = () => {
         if (note) {
           setSubject(note.subject);
           setContent(note.content);
-          setTags(note.tags ? note.tags.join(', ') : '');
+          setTags(note.tags || []);
         }
         setLoading(false);
       };
@@ -49,8 +53,7 @@ const NoteEditorPage: React.FC = () => {
     }
     
     setSubmitting(true);
-    const parsedTags = tags.split(',').map((t) => t.trim()).filter((t) => t.length > 0);
-    const noteData = { subject, content, tags: parsedTags };
+    const noteData = { subject, content, tags };
     
     try {
       if (isEditing && noteId) {
@@ -111,28 +114,67 @@ const NoteEditorPage: React.FC = () => {
                   </Box>
                 
                 <Box>
+                  <Box sx={{ mb: 3 }}>
+                    <Tabs 
+                      value={tabIndex} 
+                      onChange={(e, newValue) => setTabIndex(newValue)}
+                      TabIndicatorProps={{ sx: { backgroundColor: '#000', height: 3 } }}
+                      sx={{
+                        borderBottom: 1,
+                        borderColor: 'divider',
+                        minHeight: 48,
+                        '& .MuiTab-root': {
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          fontSize: '1rem',
+                          color: '#6B7280',
+                          '&.Mui-selected': {
+                            color: '#111827'
+                          }
+                        }
+                      }}
+                    >
+                      <Tab label="Write" />
+                      <Tab label="Preview" />
+                    </Tabs>
+                  </Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#4B5563', mb: 1 }}>Content</Typography>
-                  <TextField
-                    fullWidth
-                    multiline
-                    minRows={8}
-                    placeholder="Write your note down in detail..."
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    variant="outlined"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                  />
+                  {tabIndex === 0 ? (
+                    <TextField
+                      fullWidth
+                      multiline
+                      minRows={8}
+                      placeholder="Write your note down in detail... (Markdown and LaTeX supported)"
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
+                      variant="outlined"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                    />
+                  ) : (
+                    <Box sx={{ 
+                      minHeight: '200px', 
+                      p: 2, 
+                      border: '1px solid #E5E7EB', 
+                      borderRadius: '8px',
+                      backgroundColor: '#FAFAFA'
+                    }}>
+                      {content.trim() ? (
+                        <MarkdownViewer content={content} />
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#9CA3AF', fontStyle: 'italic' }}>
+                          Preview will appear here...
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
                 </Box>
                 
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#4B5563', mb: 1 }}>Tags</Typography>
-                  <TextField
-                    fullWidth
-                    placeholder="React, Frontend, WebDev (comma separated)"
-                    value={tags}
-                    onChange={(e) => setTags(e.target.value)}
-                    variant="outlined"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                  <TagInput
+                    tags={tags}
+                    setTags={setTags}
+                    placeholder="E.g., React, Frontend (press Enter to add)"
                   />
                 </Box>
 

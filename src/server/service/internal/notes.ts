@@ -4,12 +4,14 @@ export interface CreateNoteData {
     subject: string;
     content: string;
     tags?: string[];
+    importance?: number;
 }
 
 export interface UpdateNoteData {
     subject?: string;
     content?: string;
     tags?: string[];
+    importance?: number;
 }
 
 export interface NoteResult {
@@ -26,7 +28,8 @@ class NotesService {
                 creator: userId,
                 subject: noteData.subject,
                 content: noteData.content,
-                tags: noteData.tags || []
+                tags: noteData.tags || [],
+                importance: noteData.importance || 5
             });
 
             await note.save();
@@ -99,6 +102,8 @@ class NotesService {
             if (updateData.subject) note.subject = updateData.subject;
             if (updateData.content) note.content = updateData.content;
             if (updateData.tags) note.tags = updateData.tags;
+            if (updateData.importance !== undefined) note.importance = updateData.importance;
+            note.lastUpdated = new Date();
 
             await note.save();
             return { success: true, note };
@@ -123,6 +128,55 @@ class NotesService {
             return { success: true };
         } catch (error: any) {
             console.error('Delete note error:', error.message);
+            return { success: false, error: 'Server error' };
+        }
+    }
+
+    async likeNote(userId: string, noteId: string): Promise<NoteResult> {
+        try {
+            const user = await User.findById(userId);
+            const note = await Note.findById(noteId);
+            
+            if (!user) return { success: false, error: 'User not found' };
+            if (!note) return { success: false, error: 'Note not found' };
+
+            if (!user.likedNotes.includes(note._id)) {
+                user.likedNotes.push(note._id);
+                await user.save();
+            }
+
+            return { success: true };
+        } catch (error: any) {
+            console.error('Like note error:', error.message);
+            return { success: false, error: 'Server error' };
+        }
+    }
+
+    async unlikeNote(userId: string, noteId: string): Promise<NoteResult> {
+        try {
+            const user = await User.findById(userId);
+            
+            if (!user) return { success: false, error: 'User not found' };
+
+            user.likedNotes = user.likedNotes.filter(id => id.toString() !== noteId);
+            await user.save();
+
+            return { success: true };
+        } catch (error: any) {
+            console.error('Unlike note error:', error.message);
+            return { success: false, error: 'Server error' };
+        }
+    }
+
+    async getLikedNotes(userId: string): Promise<NoteResult> {
+        try {
+            const user = await User.findById(userId).populate('likedNotes');
+            
+            if (!user) return { success: false, error: 'User not found' };
+
+            return { success: true, notes: user.likedNotes as any[] };
+        } catch (error: any) {
+            console.error('Get liked notes error:', error.message);
             return { success: false, error: 'Server error' };
         }
     }

@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Container, Typography, Box, Paper, Grid, TextField, 
+  Container, Typography, Box, Paper, Grid,
   Button, Stack, Avatar, Chip, CircularProgress, Divider 
 } from '@mui/material';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store/store';
-import { setNewAlert } from '../../service/alert';
-import { getFeed, createNote } from '../../service/notes';
+import { getFeed } from '../../service/notes';
 import CustomPage from '../../components/layout/CustomPage';
-import SendIcon from '@mui/icons-material/Send';
+import ExpandableText from '../../components/layout/ExpandableText';
+import MarkdownViewer from '../../components/layout/MarkdownViewer';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 
 const HomePage: React.FC = () => {
@@ -17,11 +17,6 @@ const HomePage: React.FC = () => {
 
   const [notes, setNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  const [subject, setSubject] = useState('');
-  const [content, setContent] = useState('');
-  const [tags, setTags] = useState('');
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchNotes = async () => {
@@ -37,30 +32,6 @@ const HomePage: React.FC = () => {
       fetchNotes();
     }
   }, [dispatch, token]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!subject || !content) {
-      setNewAlert(dispatch, { msg: 'Subject and content are required', alertType: 'error' });
-      return;
-    }
-    
-    setSubmitting(true);
-    const tagsArray = tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
-    const res = await createNote(dispatch, { subject, content, tags: tagsArray });
-    
-    if (res) {
-      // Manually populate creator for immediate UI update
-      const newNote = res;
-      newNote.creator = { _id: userId, login: { email }, fullName };
-
-      setNotes([newNote, ...notes]);
-      setSubject('');
-      setContent('');
-      setTags('');
-    }
-    setSubmitting(false);
-  };
 
   const getInitial = (nameOrEmail?: string | null) => {
     if (!nameOrEmail) return '?';
@@ -83,10 +54,9 @@ const HomePage: React.FC = () => {
         <Container maxWidth="lg">
           <Grid container spacing={4}>
             
-            {/* Main Feed Column */}
+            {/* Navigation and Actions */}
             <Grid size={{ xs: 12, md: 8 }}>
               
-              {/* Note Creation Card */}
               <Paper elevation={0} sx={{ 
                 p: { xs: 3, md: 4 }, 
                 mb: 4,
@@ -98,70 +68,47 @@ const HomePage: React.FC = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                   <AutoAwesomeIcon sx={{ color: '#000', mr: 1.5 }} />
                   <Typography variant="h6" sx={{ fontWeight: 700, color: '#111827' }}>
-                    Capture Insight
+                    Welcome to your dashboard
                   </Typography>
                 </Box>
-                <Box component="form" onSubmit={handleSubmit}>
-                  <Stack spacing={2}>
-                    <TextField
-                      fullWidth
-                      placeholder="What's the main idea?"
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      variant="standard"
-                      InputProps={{
-                        disableUnderline: true,
-                        sx: { fontSize: '1.25rem', fontWeight: 600, color: '#111827' }
-                      }}
-                    />
-                    <TextField
-                      fullWidth
-                      multiline
-                      minRows={2}
-                      placeholder="Write down the details... we'll build a memory jog for you later."
-                      value={content}
-                      onChange={(e) => setContent(e.target.value)}
-                      variant="standard"
-                      InputProps={{
-                        disableUnderline: true,
-                        sx: { fontSize: '1.05rem', color: '#4B5563', lineHeight: 1.6 }
-                      }}
-                    />
-                    <Divider sx={{ my: 1.5 }} />
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-                      <TextField
-                        placeholder="Tags (comma separated)"
-                        value={tags}
-                        onChange={(e) => setTags(e.target.value)}
-                        variant="standard"
-                        InputProps={{
-                          disableUnderline: true,
-                          sx: { fontSize: '0.9rem', color: '#6B7280' }
-                        }}
-                        sx={{ width: { xs: '100%', sm: '60%' } }}
-                      />
-                      <Button
-                        type="submit"
-                        variant="contained"
-                        disabled={submitting}
-                        endIcon={<SendIcon />}
-                        sx={{ 
-                          px: 3,
-                          py: 1,
-                          fontWeight: 600,
-                          backgroundColor: '#000000', 
-                          color: '#ffffff', 
-                          borderRadius: '8px',
-                          textTransform: 'none',
-                          boxShadow: 'none',
-                          '&:hover': { backgroundColor: '#333333', boxShadow: 'none' }
-                        }}
-                      >
-                        Save Note
-                      </Button>
-                    </Box>
-                  </Stack>
-                </Box>
+                <Typography variant="body1" sx={{ color: '#4B5563', mb: 3 }}>
+                  Capture new insights or review your past notes. Your memory joggers are ready for you.
+                </Typography>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                  <Button
+                    variant="contained"
+                    href="/notes/new"
+                    sx={{ 
+                      px: 3,
+                      py: 1.5,
+                      fontWeight: 600,
+                      backgroundColor: '#000000', 
+                      color: '#ffffff', 
+                      borderRadius: '8px',
+                      textTransform: 'none',
+                      boxShadow: 'none',
+                      '&:hover': { backgroundColor: '#333333', boxShadow: 'none' }
+                    }}
+                  >
+                    Create a New Note
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    href="/notes"
+                    sx={{ 
+                      px: 3,
+                      py: 1.5,
+                      fontWeight: 600,
+                      color: '#374151', 
+                      borderColor: '#D1D5DB',
+                      borderRadius: '8px',
+                      textTransform: 'none',
+                      '&:hover': { backgroundColor: '#F3F4F6', borderColor: '#9CA3AF' }
+                    }}
+                  >
+                    View My Notes
+                  </Button>
+                </Stack>
               </Paper>
 
               <Typography variant="h5" sx={{ fontWeight: 700, color: '#111827', mb: 3 }}>
@@ -192,15 +139,26 @@ const HomePage: React.FC = () => {
                       }
                     }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                        <Avatar sx={{ width: 36, height: 36, bgcolor: '#F3F4F6', color: '#4B5563', mr: 2, fontSize: '0.9rem', fontWeight: 600 }}>
-                          {getInitial(displayName(note.creator))}
-                        </Avatar>
-                        <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#111827' }}>
-                            {displayName(note.creator)}
-                          </Typography>
+                        <Box
+                          onClick={() => {
+                            if (note.creator?._id) {
+                              window.location.href = `/profile/${note.creator._id}`;
+                            }
+                          }}
+                          sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
+                        >
+                          <Avatar sx={{ width: 36, height: 36, bgcolor: '#F3F4F6', color: '#4B5563', mr: 2, fontSize: '0.9rem', fontWeight: 600 }}>
+                            {getInitial(displayName(note.creator))}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#111827' }}>
+                              {displayName(note.creator)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ ml: 1 }}>
                           <Typography variant="caption" sx={{ color: '#6B7280' }}>
-                            {formatDate(note.dateCreated)}
+                            • {formatDate(note.dateCreated)}
                           </Typography>
                         </Box>
                       </Box>
@@ -209,9 +167,7 @@ const HomePage: React.FC = () => {
                         {note.subject}
                       </Typography>
                       
-                      <Typography variant="body1" sx={{ color: '#4B5563', lineHeight: 1.7, mb: 3 }}>
-                        {note.content}
-                      </Typography>
+                      <ExpandableText text={note.content} maxLength={250} />
 
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Stack direction="row" spacing={1}>

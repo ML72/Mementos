@@ -9,6 +9,9 @@ import { setNewAlert } from '../../service/alert';
 import CustomPage from '../../components/layout/CustomPage';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
+import { getUserProfile, followUser, unfollowUser } from '../../service/user';
+import { getUserNotes } from '../../service/notes';
+import ExpandableText from '../../components/layout/ExpandableText';
 
 const ProfilePage: React.FC = () => {
   const { userId: profileId } = useParams<{ userId: string }>();
@@ -16,19 +19,59 @@ const ProfilePage: React.FC = () => {
   const dispatch = useDispatch();
 
   const [notes, setNotes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [profileUser, setProfileUser] = useState<any>(null);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
-    // Placeholder for fetching user profile and notes
-    setProfileUser({ fullName: 'John Doe', login: { email: 'john@example.com' }, followers: 42 });
-    setNotes([]);
-  }, [profileId]);
+    const fetchData = async () => {
+      if (!profileId) return;
+      setLoading(true);
+      
+      const profileResult = await getUserProfile(dispatch, profileId);
+      if (profileResult) {
+        setProfileUser(profileResult);
+        setIsFollowing(profileResult.followers?.includes(currentUserId));
+      }
 
-  const handleFollowToggle = () => {
-    setIsFollowing(!isFollowing);
-    // Add real follow logic later
+      const notesResult = await getUserNotes(dispatch, profileId);
+      if (notesResult) {
+        setNotes(notesResult);
+      }
+      
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [profileId, currentUserId, dispatch]);
+
+  const handleFollowToggle = async () => {
+    if (!profileId || followLoading) return;
+    setFollowLoading(true);
+    
+    if (isFollowing) {
+      const success = await unfollowUser(dispatch, profileId);
+      if (success) {
+        setIsFollowing(false);
+        setProfileUser((prev: any) => ({
+          ...prev,
+          followerCount: Math.max(0, prev.followerCount - 1),
+          followers: prev.followers.filter((id: string) => id !== currentUserId)
+        }));
+      }
+    } else {
+      const success = await followUser(dispatch, profileId);
+      if (success) {
+        setIsFollowing(true);
+        setProfileUser((prev: any) => ({
+          ...prev,
+          followerCount: prev.followerCount + 1,
+          followers: [...(prev.followers || []), currentUserId]
+        }));
+      }
+    }
+    setFollowLoading(false);
   };
 
   const getInitial = (nameOrEmail?: string | null) => {
@@ -73,8 +116,13 @@ const ProfilePage: React.FC = () => {
                 <Typography variant="h4" sx={{ fontWeight: 800, color: '#111827' }}>
                   {displayName(profileUser)}
                 </Typography>
-                <Typography variant="body1" sx={{ color: '#6B7280', mt: 0.5 }}>
-                  {profileUser?.followers || 0} Followers
+                {profileUser?.bio && (
+                  <Typography variant="body1" sx={{ color: '#4B5563', mt: 1, mb: 0.5, maxWidth: '600px' }}>
+                    {profileUser.bio}
+                  </Typography>
+                )}
+                <Typography variant="body2" sx={{ color: '#6B7280', mt: 0.5 }}>
+                  {profileUser?.followerCount || 0} Followers
                 </Typography>
               </Box>
             </Box>
@@ -125,9 +173,7 @@ const ProfilePage: React.FC = () => {
                   <Typography variant="h6" sx={{ fontWeight: 700, color: '#111827', mb: 1 }}>
                     {note.subject}
                   </Typography>
-                  <Typography variant="body1" sx={{ color: '#4B5563', lineHeight: 1.6, mb: 2 }}>
-                    {note.content}
-                  </Typography>
+                  <ExpandableText text={note.content} maxLength={250} />
                 </Paper>
               ))}
             </Stack>

@@ -100,3 +100,18 @@ export const deleteNote = async (dispatch: any, id: string) => {
         return false;
     }
 };
+
+// Get a specific user's notes
+export const getUserNotes = async (dispatch: any, userId: string) => {
+    try {
+        const res = await axios.get(`/api/notes/user/${userId}`);
+        return res.data;
+    } catch (err: any) {
+        let msg = 'Failed to fetch user notes';
+        if (err.response && err.response.data && err.response.data.errors) {
+            msg = err.response.data.errors.map((e: any) => e.msg).join(', ');
+        }
+        setNewAlert(dispatch, { msg, alertType: 'error' });
+        return null;
+    }
+};

@@ -57,7 +57,9 @@ describe('Users Endpoints Integration', () => {
 
             // Verify in DB
             const user1 = await User.findOne({ 'login.email': 'user1@test.com' });
+            const user2 = await User.findOne({ 'login.email': 'user2@test.com' });
             expect(user1?.following.map(id => id.toString())).toContain(user2Id);
+            expect(user2?.followers.map(id => id.toString())).toContain(user1?._id.toString());
 
             // Unfollow user2
             const unfollowRes = await request(app)
@@ -70,7 +72,9 @@ describe('Users Endpoints Integration', () => {
 
             // Verify in DB
             const updatedUser1 = await User.findOne({ 'login.email': 'user1@test.com' });
+            const updatedUser2 = await User.findOne({ 'login.email': 'user2@test.com' });
             expect(updatedUser1?.following.map(id => id.toString())).not.toContain(user2Id);
+            expect(updatedUser2?.followers.map(id => id.toString())).not.toContain(updatedUser1?._id.toString());
         });
 
         it('should fail if user tries to follow themselves', async () => {
@@ -84,6 +88,57 @@ describe('Users Endpoints Integration', () => {
             
             expect(followRes.statusCode).toEqual(400);
             expect(followRes.body.errors[0].msg).toEqual('Cannot follow yourself');
+        });
+    });
+
+    describe('GET /api/users/:id/profile', () => {
+        it('should get a user profile with bio, followers, following counts', async () => {
+            const { token: user1Token } = await createUserAndGetToken('user1@test.com');
+            const { token: user2Token } = await createUserAndGetToken('user2@test.com');
+            const user2Id = await getUserIdFromEmail('user2@test.com');
+
+            await User.updateOne({ _id: user2Id }, { bio: 'Hello World!' });
+
+            await request(app)
+                .post(`/api/users/${user2Id}/follow`)
+                .set('x-auth-token', user1Token)
+                .send();
+
+            const profileRes = await request(app)
+                .get(`/api/users/${user2Id}/profile`)
+                .set('x-auth-token', user1Token)
+                .send();
+
+            expect(profileRes.statusCode).toEqual(200);
+            expect(profileRes.body.fullName).toBe('Test User');
+            expect(profileRes.body.bio).toBe('Hello World!');
+            expect(profileRes.body.followerCount).toBe(1);
+            expect(profileRes.body.followingCount).toBe(0);
+        });
+    });
+
+    describe('PUT /api/users/profile', () => {
+        it('should update current user profile (name and bio)', async () => {
+            const { token: user1Token } = await createUserAndGetToken('update@test.com');
+            const user1Id = await getUserIdFromEmail('update@test.com');
+
+            const res = await request(app)
+                .put('/api/users/profile')
+                .set('x-auth-token', user1Token)
+                .send({ fullName: 'Updated Name', bio: 'New Bio' });
+
+            expect(res.statusCode).toEqual(200);
+            expect(res.body.fullName).toBe('Updated Name');
+            expect(res.body.bio).toBe('New Bio');
+
+            const profileRes = await request(app)
+                .get(`/api/users/${user1Id}/profile`)
+                .set('x-auth-token', user1Token)
+                .send();
+
+            expect(profileRes.statusCode).toEqual(200);
+            expect(profileRes.body.fullName).toBe('Updated Name');
+            expect(profileRes.body.bio).toBe('New Bio');
         });
     });
 });

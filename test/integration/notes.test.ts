@@ -52,12 +52,15 @@ describe('Notes Endpoints Integration', () => {
                 .send({
                     subject: 'My Note',
                     content: 'Note contents here',
-                    tags: ['tag1']
+                    tags: ['tag1'],
+                    importance: 8
                 });
             
             expect(createRes.statusCode).toEqual(200);
             expect(createRes.body.subject).toBe('My Note');
             expect(createRes.body.content).toBe('Note contents here');
+            expect(createRes.body.importance).toBe(8);
+            expect(createRes.body.lastUpdated).toBeDefined();
             const noteId = createRes.body._id;
 
             // 2. Read Single Note
@@ -76,12 +79,15 @@ describe('Notes Endpoints Integration', () => {
                 .send({
                     subject: 'Updated Note',
                     content: 'Updated contents',
-                    tags: ['tag1', 'tag2']
+                    tags: ['tag1', 'tag2'],
+                    importance: 9
                 });
 
             expect(updateRes.statusCode).toEqual(200);
             expect(updateRes.body.subject).toBe('Updated Note');
             expect(updateRes.body.tags.length).toBe(2);
+            expect(updateRes.body.importance).toBe(9);
+            expect(new Date(updateRes.body.lastUpdated).getTime()).toBeGreaterThanOrEqual(new Date(createRes.body.lastUpdated).getTime());
 
             // 4. Delete
             const deleteRes = await request(app)
@@ -164,6 +170,56 @@ describe('Notes Endpoints Integration', () => {
             expect(res.body.length).toBe(2);
             expect(res.body[0].subject).toBe('Note 2'); // sorted by dateCreated desc
             expect(res.body[1].subject).toBe('Note 1');
+        });
+    });
+
+    describe('Notes Like/Unlike', () => {
+        it('should like and unlike a note', async () => {
+            const { token: user1Token } = await createUserAndGetToken('liker@test.com');
+            const { token: user2Token } = await createUserAndGetToken('author@test.com');
+
+            // Author creates a note
+            const createRes = await request(app)
+                .post('/api/notes')
+                .set('x-auth-token', user2Token)
+                .send({
+                    subject: 'Like Me',
+                    content: 'Content'
+                });
+            const noteId = createRes.body._id;
+
+            // User1 likes the note
+            const likeRes = await request(app)
+                .post(`/api/notes/${noteId}/like`)
+                .set('x-auth-token', user1Token)
+                .send();
+            expect(likeRes.statusCode).toEqual(200);
+            expect(likeRes.body.msg).toBe('Note liked');
+
+            // Get liked notes
+            const getLikedRes = await request(app)
+                .get('/api/notes/liked')
+                .set('x-auth-token', user1Token)
+                .send();
+            expect(getLikedRes.statusCode).toEqual(200);
+            expect(getLikedRes.body.length).toBe(1);
+            expect(getLikedRes.body[0]._id).toBe(noteId);
+
+            // User1 unlikes the note
+            const unlikeRes = await request(app)
+                .post(`/api/notes/${noteId}/unlike`)
+                .set('x-auth-token', user1Token)
+                .send();
+            expect(unlikeRes.statusCode).toEqual(200);
+            expect(unlikeRes.body.msg).toBe('Note unliked');
+
+            // Get liked notes again
+            const getLikedRes2 = await request(app)
+                .get('/api/notes/liked')
+                .set('x-auth-token', user1Token)
+                .send();
+            expect(getLikedRes2.statusCode).toEqual(200);
+            expect(getLikedRes2.body.length).toBe(0);
         });
     });
 

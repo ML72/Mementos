@@ -33,7 +33,17 @@ const NoteSchema = new Schema({
         minlength: CONTENT_LIMITS.NOTE.CONTENT_MIN_LENGTH,
         maxlength: CONTENT_LIMITS.NOTE.CONTENT_MAX_LENGTH
     },
+    importance: {
+        type: Number,
+        min: 1,
+        max: 10,
+        default: 5
+    },
     dateCreated: {
+        type: Date,
+        default: Date.now
+    },
+    lastUpdated: {
         type: Date,
         default: Date.now
     }

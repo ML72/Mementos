@@ -26,6 +26,25 @@ router.get('/', privateAccess, async (req: Request, res: Response) => {
     }
 });
 
+// @route GET api/notes/liked
+// @desc get current user's liked notes
+// @access private
+router.get('/liked', privateAccess, async (req: Request, res: Response) => {
+    try {
+        const result = await notesService.getLikedNotes(req.user!.id);
+        
+        if (!result.success) {
+            sendError(res, 400, result.error || 'Failed to fetch liked notes');
+            return;
+        }
+
+        res.json(result.notes);
+    } catch(err: any) {
+        console.error(err.message);
+        sendError(res, 500, 'Server Error - Please try again');
+    }
+});
+
 // @route GET api/notes/my
 // @desc get current user's notes
 // @access private
@@ -33,6 +52,25 @@ router.get('/my', privateAccess, async (req: Request, res: Response) => {
     try {
         const result = await notesService.getOwnNotes(req.user!.id);
         
+        if (!result.success) {
+            sendError(res, 400, result.error || 'Failed to fetch notes');
+            return;
+        }
+
+        res.json(result.notes);
+    } catch(err: any) {
+        console.error(err.message);
+        sendError(res, 500, 'Server Error - Please try again');
+    }
+});
+
+// @route GET api/notes/user/:id
+// @desc get a specific user's notes
+// @access private
+router.get('/user/:id', privateAccess, async (req: Request, res: Response) => {
+    try {
+        const result = await notesService.getOwnNotes(req.params.id);
+
         if (!result.success) {
             sendError(res, 400, result.error || 'Failed to fetch notes');
             return;
@@ -83,8 +121,8 @@ router.post('/', [
     }
 
     try {
-        const { subject, content, tags } = req.body;
-        const result = await notesService.createNote(req.user!.id, { subject, content, tags });
+        const { subject, content, tags, importance } = req.body;
+        const result = await notesService.createNote(req.user!.id, { subject, content, tags, importance });
 
         if (!result.success) {
             sendError(res, 400, result.error || 'Failed to create note');
@@ -103,8 +141,8 @@ router.post('/', [
 // @access private
 router.put('/:id', privateAccess, async (req: Request, res: Response) => {
     try {
-        const { subject, content, tags } = req.body;
-        const result = await notesService.updateNote(req.user!.id, req.params.id, { subject, content, tags });
+        const { subject, content, tags, importance } = req.body;
+        const result = await notesService.updateNote(req.user!.id, req.params.id, { subject, content, tags, importance });
 
         if (!result.success) {
             sendError(res, 400, result.error || 'Failed to update note');
@@ -135,6 +173,52 @@ router.delete('/:id', privateAccess, async (req: Request, res: Response) => {
         }
 
         res.json({ msg: 'Note removed' });
+    } catch(err: any) {
+        console.error(err.message);
+        if (err.kind === 'ObjectId') {
+            sendError(res, 404, 'Note not found');
+            return;
+        }
+        sendError(res, 500, 'Server Error - Please try again');
+    }
+});
+
+// @route POST api/notes/:id/like
+// @desc like a note
+// @access private
+router.post('/:id/like', privateAccess, async (req: Request, res: Response) => {
+    try {
+        const result = await notesService.likeNote(req.user!.id, req.params.id);
+        
+        if (!result.success) {
+            sendError(res, 400, result.error || 'Failed to like note');
+            return;
+        }
+
+        res.json({ msg: 'Note liked' });
+    } catch(err: any) {
+        console.error(err.message);
+        if (err.kind === 'ObjectId') {
+            sendError(res, 404, 'Note not found');
+            return;
+        }
+        sendError(res, 500, 'Server Error - Please try again');
+    }
+});
+
+// @route POST api/notes/:id/unlike
+// @desc unlike a note
+// @access private
+router.post('/:id/unlike', privateAccess, async (req: Request, res: Response) => {
+    try {
+        const result = await notesService.unlikeNote(req.user!.id, req.params.id);
+        
+        if (!result.success) {
+            sendError(res, 400, result.error || 'Failed to unlike note');
+            return;
+        }
+
+        res.json({ msg: 'Note unliked' });
     } catch(err: any) {
         console.error(err.message);
         if (err.kind === 'ObjectId') {

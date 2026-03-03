@@ -32,7 +32,8 @@ const CONTENT_LIMITS: any = {
     USER: {
         PASSWORD_MIN_LENGTH: 8,
         PASSWORD_MAX_LENGTH: 128,
-        EMAIL_MAX_LENGTH: 254
+        EMAIL_MAX_LENGTH: 254,
+        BIO_MAX_LENGTH: 500
     }
 };
 

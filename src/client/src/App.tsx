@@ -9,10 +9,12 @@ import { initializeAuth } from './service/auth';
 /* Page component imports */
 import Landing from './pages/public/Landing';
 import Login from './pages/public/Login';
+import About from './pages/public/About';
 import HomePage from './pages/private/HomePage';
 import ProfilePage from './pages/private/ProfilePage';
 import MyNotesPage from './pages/private/MyNotesPage';
 import NoteEditorPage from './pages/private/NoteEditorPage';
+import SettingsPage from './pages/private/SettingsPage';
 
 /* Custom CSS */
 import './App.css';
@@ -46,6 +48,14 @@ const App: React.FC = () => {
             </PublicPage>
           }
         />
+        <Route
+          path="/about"
+          element={
+            <PublicPage restrictAuthenticated={false}>
+              <About />
+            </PublicPage>
+          }
+        />
 
         {/* Private Routes */}
         <Route
@@ -61,6 +71,14 @@ const App: React.FC = () => {
           element={
             <AuthenticatedPage allowedRoles={["USER"]}>
               <ProfilePage />
+            </AuthenticatedPage>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <AuthenticatedPage allowedRoles={["USER"]}>
+              <SettingsPage />
             </AuthenticatedPage>
           }
         />

@@ -5,24 +5,25 @@ import { RootState } from "../../store/store";
 
 interface PublicPageProps {
   children: React.ReactNode;
+  restrictAuthenticated?: boolean;
 }
 
 /**
  * PublicPage component
  * Renders children only if the user has no roles (not authenticated).
- * If the user has any roles, redirects to /home.
+ * If the user has any roles and restrictAuthenticated is true, redirects to /home.
  */
-const PublicPage: React.FC<PublicPageProps> = ({ children }) => {
+const PublicPage: React.FC<PublicPageProps> = ({ children, restrictAuthenticated = true }) => {
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (restrictAuthenticated && isAuthenticated) {
       navigate("/home", { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, restrictAuthenticated]);
 
-  if (isAuthenticated) {
+  if (restrictAuthenticated && isAuthenticated) {
     return null;
   }
 
