@@ -10,6 +10,9 @@ import { initializeAuth } from './service/auth';
 import Landing from './pages/public/Landing';
 import Login from './pages/public/Login';
 import HomePage from './pages/private/HomePage';
+import ProfilePage from './pages/private/ProfilePage';
+import MyNotesPage from './pages/private/MyNotesPage';
+import NoteEditorPage from './pages/private/NoteEditorPage';
 
 /* Custom CSS */
 import './App.css';
@@ -49,6 +52,38 @@ const App: React.FC = () => {
           element={
             <AuthenticatedPage allowedRoles={["USER"]}>
               <HomePage />
+            </AuthenticatedPage>
+          }
+        />
+        <Route
+          path="/profile/:userId"
+          element={
+            <AuthenticatedPage allowedRoles={["USER"]}>
+              <ProfilePage />
+            </AuthenticatedPage>
+          }
+        />
+        <Route
+          path="/notes"
+          element={
+            <AuthenticatedPage allowedRoles={["USER"]}>
+              <MyNotesPage />
+            </AuthenticatedPage>
+          }
+        />
+        <Route
+          path="/notes/:noteId/edit"
+          element={
+            <AuthenticatedPage allowedRoles={["USER"]}>
+              <NoteEditorPage />
+            </AuthenticatedPage>
+          }
+        />
+        <Route
+          path="/notes/new"
+          element={
+            <AuthenticatedPage allowedRoles={["USER"]}>
+              <NoteEditorPage />
             </AuthenticatedPage>
           }
         />

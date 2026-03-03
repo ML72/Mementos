@@ -63,7 +63,7 @@ class NotesService {
             
             const notes = await Note.find({
                 creator: { $in: authors }
-            }).sort({ dateCreated: -1 });
+            }).sort({ dateCreated: -1 }).populate('creator', 'login.email fullName');
 
             return { success: true, notes };
         } catch (error: any) {

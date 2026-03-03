@@ -34,7 +34,7 @@ describe('Auth Endpoints Integration Services', () => {
                 .post('/api/users')
                 .send({
                     email: 'test@example.com',
-                    password: 'password123'
+                    password: 'password123', fullName: 'Test Name'
                 });
             
             expect(res.statusCode).toEqual(200);
@@ -57,7 +57,7 @@ describe('Auth Endpoints Integration Services', () => {
                 .post('/api/users')
                 .send({
                     email: 'test@example.com',
-                    password: 'password123'
+                    password: 'password123', fullName: 'Test Name'
                 });
 
             // Then login
@@ -65,7 +65,7 @@ describe('Auth Endpoints Integration Services', () => {
                 .post('/api/auth')
                 .send({
                     email: 'test@example.com',
-                    password: 'password123'
+                    password: 'password123', fullName: 'Test Name'
                 });
 
             expect(res.statusCode).toEqual(200);
@@ -78,7 +78,7 @@ describe('Auth Endpoints Integration Services', () => {
                 .post('/api/users')
                 .send({
                     email: 'test@example.com',
-                    password: 'password123'
+                    password: 'password123', fullName: 'Test Name'
                 });
 
              const res = await request(app)
@@ -99,7 +99,7 @@ describe('Auth Endpoints Integration Services', () => {
                 .post('/api/users')
                 .send({
                     email: 'test@example.com',
-                    password: 'password123'
+                    password: 'password123', fullName: 'Test Name'
                 });
             
             const token = regRes.body.token;

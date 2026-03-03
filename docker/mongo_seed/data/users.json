@@ -2,6 +2,7 @@
   "_id": {
     "$oid": "68a91c880d3a80d22f7ad591"
   },
+  "fullName": "Test User",
   "login": {
     "email": "testuser@gmail.com",
     "password": "$2b$10$TNIldRKqzx06lWpP9Lf7SuyIsal2Me3d1t1.d27GcZwTpiPWA0zOq",

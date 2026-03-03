@@ -3,11 +3,11 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { Container, Box } from '@mui/material';
 
 import Alert from './Alert';
-import PersistentDrawer from './PersistentDrawer';
+import Navbar from './Navbar';
 
 interface ComponentProps {
   useBindingContainer?: boolean;
-  showNavigation?: boolean;
+  showNavigation?: boolean; // We can use this to hide navbar entirely if needed
   children?: ReactNode;
 }
 
@@ -38,13 +38,11 @@ const CustomPage: React.FC<ComponentProps> = ({ useBindingContainer = true, show
     }
   });
 
-  const drawerWidth = 220;
-
   return (
     <ThemeProvider theme={theme}>
+      {showNavigation && <Navbar />}
       <Container maxWidth={useBindingContainer ? "lg" : false} disableGutters={!useBindingContainer}>
-        {showNavigation && <PersistentDrawer />}
-        <Box sx={showNavigation ? { ml: `${drawerWidth}px`, width: `calc(100% - ${drawerWidth}px)` } : { width: '100%' }}>
+        <Box sx={{ width: '100%' }}>
           {children}
         </Box>
       </Container>

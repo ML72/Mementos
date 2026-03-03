@@ -28,10 +28,10 @@ describe('Notes Endpoints Integration', () => {
         await Note.deleteMany({});
     });
 
-    const createUserAndGetToken = async (email: string, password: string = 'password123') => {
+    const createUserAndGetToken = async (email: string, password: string = 'password123', fullName: string = 'Test User') => {
         const res = await request(app)
             .post('/api/users')
-            .send({ email, password });
+            .send({ email, password, fullName });
         return { token: res.body.token, email };
     };
 

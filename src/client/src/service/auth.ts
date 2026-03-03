@@ -27,17 +27,18 @@ export const login = async (
       headers: { 'x-auth-token': token }
     });
 
-    const { _id, login, roles } = userRes.data;
-    
+const { _id, login, roles, fullName } = userRes.data;
+
     // Set axios default header for future requests
     setAuthHeader(token);
-    
+
     // Dispatch to Redux store (redux-persist will handle persistence)
     dispatch(
       setAuth({
         token,
         userId: _id,
         email: login?.email,
+        fullName,
         accountRoles: roles || ['USER']
       })
     );
@@ -74,22 +75,24 @@ export const register = async (
   dispatch: any,
   {
     email,
-    password
-  }: { 
-    email: string; 
-    password: string; 
+    password,
+    fullName
+  }: {
+    email: string;
+    password: string;
+    fullName: string;
   }
 ) => {
   try {
-    const res = await axios.post('/api/users', { email, password });
+    const res = await axios.post('/api/users', { email, password, fullName });
     const { token } = res.data;
-    
+
     // Login immediately after registration
     const userRes = await axios.get('/api/auth', {
       headers: { 'x-auth-token': token }
     });
 
-    const { _id, login, roles } = userRes.data;
+    const { _id, login, roles, fullName: returnedFullName } = userRes.data;
 
     setAuthHeader(token);
 
@@ -98,6 +101,7 @@ export const register = async (
         token,
         userId: _id,
         email: login?.email,
+        fullName: returnedFullName,
         accountRoles: roles || ['USER']
       })
     );

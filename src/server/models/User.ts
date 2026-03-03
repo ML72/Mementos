@@ -2,6 +2,11 @@ import { Schema, model } from 'mongoose';
 import { CONTENT_LIMITS } from '../settings';
 
 const UserSchema = new Schema({
+    fullName: {
+        type: String,
+        required: true,
+        maxlength: 100
+    },
     login: {
         email: {
             type: String,

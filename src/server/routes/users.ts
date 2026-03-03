@@ -11,6 +11,7 @@ const userService = new UserService();
 // @desc register user
 // @access public
 router.post('/', [
+    check('fullName', 'Please enter your full name').not().isEmpty(),
     check('email', 'Please enter a valid email').isEmail(),
     check('password', 'Password must be at least 6 characters long').isLength({ min: 6 })
 ], async (req: Request, res: Response) => {
@@ -21,10 +22,11 @@ router.post('/', [
     }
 
     try {
-        const { email, password } = req.body;
+        const { email, password, fullName } = req.body;
         const result = await userService.createUser({
             email,
-            password
+            password,
+            fullName
         });
 
         if (!result.success) {

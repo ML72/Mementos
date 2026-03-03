@@ -6,6 +6,7 @@ import { JWT_SECRET } from '../../settings';
 export interface CreateUserData {
     email: string;
     password: string;
+    fullName: string;
 }
 
 export interface CreateUserResult {
@@ -22,8 +23,8 @@ export interface ToggleFollowResult {
 class UserService {
     async createUser(userData: CreateUserData): Promise<CreateUserResult> {
         try {
-            const { email, password } = userData;
-            
+            const { email, password, fullName } = userData;
+
             let user = await User.findOne({ 'login.email': email });
             if (user) {
                 return { success: false, error: 'User already exists' };
@@ -33,6 +34,7 @@ class UserService {
             const hashedPassword = await bcrypt.hash(password, salt);
 
             user = new User({
+                fullName,
                 login: {
                     email,
                     password: hashedPassword,

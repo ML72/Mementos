@@ -30,7 +30,7 @@ describe('Users Endpoints Integration', () => {
     const createUserAndGetToken = async (email: string, password: string = 'password123') => {
         const res = await request(app)
             .post('/api/users')
-            .send({ email, password });
+            .send({ email, password, fullName: 'Test User' });
         return { token: res.body.token, email };
     };
 
