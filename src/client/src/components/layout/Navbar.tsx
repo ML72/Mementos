@@ -53,6 +53,9 @@ const Navbar: React.FC = () => {
               <Button color="inherit" onClick={() => navigate('/notes')} sx={{ textTransform: 'none', fontWeight: 600 }}>
                 Notes
               </Button>
+              <Button color="inherit" onClick={() => navigate('/people')} sx={{ textTransform: 'none', fontWeight: 600 }}>
+                People
+              </Button>
               <Button color="inherit" onClick={() => navigate(`/profile/${userId}`)} sx={{ textTransform: 'none', fontWeight: 600 }}>
                 Profile
               </Button>
@@ -104,6 +107,7 @@ const Navbar: React.FC = () => {
       >
         {isAuthenticated ? [
           <MenuItem key="notes" onClick={() => { navigate('/notes'); handleMobileMenuClose(); }}>Notes</MenuItem>,
+          <MenuItem key="people" onClick={() => { navigate('/people'); handleMobileMenuClose(); }}>People</MenuItem>,
           <MenuItem key="profile" onClick={() => { navigate(`/profile/${userId}`); handleMobileMenuClose(); }}>Profile</MenuItem>,
           <MenuItem key="settings" onClick={() => { navigate('/settings'); handleMobileMenuClose(); }}>Settings</MenuItem>,
           <MenuItem key="new_note" onClick={() => { navigate('/notes/new'); handleMobileMenuClose(); }}>New Note</MenuItem>,

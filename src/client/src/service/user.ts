@@ -63,3 +63,50 @@ export const unfollowUser = async (dispatch: any, userId: string) => {
     return false;
   }
 };
+
+export const searchUsers = async (dispatch: any, query: string, page: number = 0, pageSize: number = 10) => {
+  try {
+    const res = await axios.get(`/api/users/search`, {
+      params: { query, page, pageSize }
+    });
+    return res.data;
+  } catch (err: any) {
+    const errors = err.response?.data?.errors;
+    if (errors) {
+      errors.forEach((error: any) => setNewAlert(dispatch, { msg: error, alertType: 'error' }));
+    } else {
+      setNewAlert(dispatch, { msg: err.response?.data?.msg || 'Could not search users', alertType: 'error' });
+    }
+    return null;
+  }
+};
+
+export const getUserFollowers = async (dispatch: any, userId: string) => {
+  try {
+    const res = await axios.get(`/api/users/${userId}/followers`);
+    return res.data;
+  } catch (err: any) {
+    const errors = err.response?.data?.errors;
+    if (errors) {
+      errors.forEach((error: any) => setNewAlert(dispatch, { msg: error, alertType: 'error' }));
+    } else {
+      setNewAlert(dispatch, { msg: err.response?.data?.msg || 'Could not fetch followers', alertType: 'error' });
+    }
+    return null;
+  }
+};
+
+export const getUserFollowing = async (dispatch: any, userId: string) => {
+  try {
+    const res = await axios.get(`/api/users/${userId}/following`);
+    return res.data;
+  } catch (err: any) {
+    const errors = err.response?.data?.errors;
+    if (errors) {
+      errors.forEach((error: any) => setNewAlert(dispatch, { msg: error, alertType: 'error' }));
+    } else {
+      setNewAlert(dispatch, { msg: err.response?.data?.msg || 'Could not fetch following', alertType: 'error' });
+    }
+    return null;
+  }
+};

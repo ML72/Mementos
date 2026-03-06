@@ -1,18 +1,136 @@
-[{
-  "_id": {
-    "$oid": "68a91c880d3a80d22f7ad591"
+[
+  {
+    "_id": {
+      "$oid": "64a819c803d8a0227fda5591"
+    },
+    "login": {
+      "email": "alice.johnson@example.com",
+      "password": "$2b$10$raVKuF2Xu.T4O23M/U08yu1m1tbwrtMRbSlGosiXTvEMjyQ30Oca6",
+      "verified": true
+    },
+    "roles": [
+      "USER"
+    ],
+    "profile": {
+      "fullName": "Alice Johnson",
+      "bio": "I love learning about machine learning and neuroscience."
+    },
+    "following": [
+      {
+        "$oid": "64a819c803d8a0227fda5592"
+      }
+    ],
+    "followers": [
+      {
+        "$oid": "64a819c803d8a0227fda5593"
+      },
+      {
+        "$oid": "64a819c803d8a0227fda5594"
+      }
+    ],
+    "likedNotes": [],
+    "dateCreated": {
+      "$date": "2025-08-20T10:42:32.340Z"
+    },
+    "__v": 0
   },
-  "fullName": "Test User",
-  "login": {
-    "email": "testuser@gmail.com",
-    "password": "$2b$10$TNIldRKqzx06lWpP9Lf7SuyIsal2Me3d1t1.d27GcZwTpiPWA0zOq",
-    "verified": true
+  {
+    "_id": {
+      "$oid": "64a819c803d8a0227fda5592"
+    },
+    "login": {
+      "email": "bob.smith@example.com",
+      "password": "$2b$10$raVKuF2Xu.T4O23M/U08yu1m1tbwrtMRbSlGosiXTvEMjyQ30Oca6",
+      "verified": true
+    },
+    "roles": [
+      "USER"
+    ],
+    "profile": {
+      "fullName": "Bob Smith",
+      "bio": "Avid reader and software engineer. Specializes in distributed systems."
+    },
+    "following": [
+      {
+        "$oid": "64a819c803d8a0227fda5593"
+      }
+    ],
+    "followers": [
+      {
+        "$oid": "64a819c803d8a0227fda5591"
+      }
+    ],
+    "likedNotes": [],
+    "dateCreated": {
+      "$date": "2025-08-25T11:05:30.000Z"
+    },
+    "__v": 0
   },
-  "roles": [
-    "USER"
-  ],
-  "dateCreated": {
-    "$date": "2025-08-23T01:42:32.346Z"
+  {
+    "_id": {
+      "$oid": "64a819c803d8a0227fda5593"
+    },
+    "login": {
+      "email": "carol.williams@example.com",
+      "password": "$2b$10$raVKuF2Xu.T4O23M/U08yu1m1tbwrtMRbSlGosiXTvEMjyQ30Oca6",
+      "verified": true
+    },
+    "roles": [
+      "USER"
+    ],
+    "profile": {
+      "fullName": "Carol Williams",
+      "bio": "Enthusiastic about history, art, and philosophy."
+    },
+    "following": [
+      {
+        "$oid": "64a819c803d8a0227fda5591"
+      },
+      {
+        "$oid": "64a819c803d8a0227fda5594"
+      }
+    ],
+    "followers": [
+      {
+        "$oid": "64a819c803d8a0227fda5592"
+      }
+    ],
+    "likedNotes": [],
+    "dateCreated": {
+      "$date": "2025-09-01T14:22:15.100Z"
+    },
+    "__v": 0
   },
-  "__v": 0
-}]
+  {
+    "_id": {
+      "$oid": "64a819c803d8a0227fda5594"
+    },
+    "login": {
+      "email": "dave.davis@example.com",
+      "password": "$2b$10$raVKuF2Xu.T4O23M/U08yu1m1tbwrtMRbSlGosiXTvEMjyQ30Oca6",
+      "verified": true
+    },
+    "roles": [
+      "USER"
+    ],
+    "profile": {
+      "fullName": "Dave Davis",
+      "bio": "Fitness coach and nutrition expert."
+    },
+    "following": [
+      {
+        "$oid": "64a819c803d8a0227fda5591"
+      }
+    ],
+    "followers": [
+      {
+        "$oid": "64a819c803d8a0227fda5593"
+      }
+    ],
+    "likedNotes": [],
+    "dateCreated": {
+      "$date": "2025-09-10T08:05:45.000Z"
+    },
+    "__v": 0
+  }
+]

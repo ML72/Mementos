@@ -11,6 +11,7 @@ import Landing from './pages/public/Landing';
 import Login from './pages/public/Login';
 import About from './pages/public/About';
 import HomePage from './pages/private/HomePage';
+import PeoplePage from './pages/private/PeoplePage';
 import ProfilePage from './pages/private/ProfilePage';
 import MyNotesPage from './pages/private/MyNotesPage';
 import NoteEditorPage from './pages/private/NoteEditorPage';
@@ -63,6 +64,14 @@ const App: React.FC = () => {
           element={
             <AuthenticatedPage allowedRoles={["USER"]}>
               <HomePage />
+            </AuthenticatedPage>
+          }
+        />
+        <Route
+          path="/people"
+          element={
+            <AuthenticatedPage allowedRoles={["USER"]}>
+              <PeoplePage />
             </AuthenticatedPage>
           }
         />

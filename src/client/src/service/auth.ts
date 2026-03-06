@@ -39,7 +39,8 @@ export const login = async (
       headers: { 'x-auth-token': token }
     });
 
-const { _id, login, roles, fullName } = userRes.data;
+    const { _id, login, roles, profile } = userRes.data;
+    const fullName = profile?.fullName;
 
     // Set axios default header for future requests
     setAuthHeader(token);
@@ -104,7 +105,8 @@ export const register = async (
       headers: { 'x-auth-token': token }
     });
 
-    const { _id, login, roles, fullName: returnedFullName } = userRes.data;
+    const { _id, login, roles, profile: returnedProfile } = userRes.data;
+    const returnedFullName = returnedProfile?.fullName;
 
     setAuthHeader(token);
 

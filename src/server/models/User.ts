@@ -24,15 +24,17 @@ const UserSchema = new Schema({
         type: String,
         default: 'USER'
     }],
-    fullName: {
-        type: String,
-        required: true,
-        maxlength: 100
-    },
-    bio: {
-        type: String,
-        maxlength: CONTENT_LIMITS.USER.BIO_MAX_LENGTH,
-        default: ''
+    profile: {
+        fullName: {
+            type: String,
+            required: true,
+            maxlength: 100
+        },
+        bio: {
+            type: String,
+            maxlength: CONTENT_LIMITS.USER.BIO_MAX_LENGTH,
+            default: ''
+        }
     },
     following: [{
         type: Schema.Types.ObjectId,
@@ -51,6 +53,13 @@ const UserSchema = new Schema({
         default: Date.now
     }
 });
+
+// A text index allows for highly optimized text queries and supports text scoring.
+// We apply weights to give priority: matches in fullName are prioritized over bio.
+UserSchema.index(
+    { 'profile.fullName': 'text', 'profile.bio': 'text' },
+    { weights: { 'profile.fullName': 5, 'profile.bio': 1 } }
+);
 
 const User = model('User', UserSchema);
 export default User;

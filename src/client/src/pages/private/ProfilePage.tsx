@@ -81,7 +81,7 @@ const ProfilePage: React.FC = () => {
 
   const displayName = (user?: any) => {
     if (!user) return 'Unknown User';
-    return user.fullName || user.login?.email || 'Unknown User';
+    return user.profile?.fullName || user.fullName || user.login?.email || 'Unknown User';
   };
 
   const formatDate = (dateString: string) => {

@@ -1,8 +1,9 @@
 import { Request, Response, Router } from 'express';
-import { check, validationResult } from 'express-validator';
+import { check, validationResult, query as expressQuery } from 'express-validator';
 import { privateAccess } from '../middleware';
 import { UserService } from '../service';
 import { sendError } from '../util';
+import { REQUEST_CONSTRAINTS } from '../settings';
 
 const router = Router();
 const userService = new UserService();
@@ -79,6 +80,57 @@ router.post('/:id/unfollow', privateAccess, async (req: Request, res: Response) 
     }
 });
 
+// @route GET api/users/search
+// @desc search users
+// @access private
+router.get('/search', privateAccess, [
+    expressQuery('query')
+        .isString()
+        .trim()
+        .isLength({ min: Object.assign({}, REQUEST_CONSTRAINTS.USER_SEARCH).MIN_QUERY_LENGTH })
+        .withMessage(`Query must be at least ${Object.assign({}, REQUEST_CONSTRAINTS.USER_SEARCH).MIN_QUERY_LENGTH} characters long`),
+    expressQuery('page')
+        .optional()
+        .isInt({ min: 0 })
+        .toInt(),
+    expressQuery('pageSize')
+        .optional()
+        .isInt({ min: 1, max: Object.assign({}, REQUEST_CONSTRAINTS.USER_SEARCH).MAX_PAGE_SIZE })
+        .toInt()
+], async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        sendError(res, 400, errors.array().map(e => e.msg));
+        return;
+    }
+
+    try {
+        const queryStr = req.query.query as string;
+        let page = 0;
+        let pageSize = REQUEST_CONSTRAINTS.USER_SEARCH.DEFAULT_PAGE_SIZE;
+        
+        if (req.query.page !== undefined && !Number.isNaN(Number(req.query.page))) {
+            page = Number(req.query.page);
+        }
+        
+        if (req.query.pageSize !== undefined && !Number.isNaN(Number(req.query.pageSize))) {
+            pageSize = Number(req.query.pageSize);
+        }
+
+        const result = await userService.searchUsers(queryStr, page, pageSize);
+
+        if (!result.success) {
+            sendError(res, 400, result.error || 'Search failed');
+            return;
+        }
+
+        res.json(result.results);
+    } catch (err: any) {
+        console.error(err.message);
+        sendError(res, 500, 'Server Error - Please try again');
+    }
+});
+
 // @route GET api/users/:id/profile
 // @desc get a user's profile
 // @access private
@@ -127,6 +179,52 @@ router.put('/profile', privateAccess, [
         res.json(result.profile);
     } catch (err: any) {
         console.error(err.message);
+        sendError(res, 500, 'Server Error - Please try again');
+    }
+});
+
+// @route GET api/users/:id/following
+// @desc get a user's following list
+// @access private
+router.get('/:id/following', privateAccess, async (req: Request, res: Response) => {
+    try {
+        const result = await userService.getUserFollowing(req.params.id);
+        
+        if (!result.success) {
+            sendError(res, 404, result.error || 'User not found');
+            return;
+        }
+
+        res.json(result.results);
+    } catch(err: any) {
+        console.error(err.message);
+        if (err.kind === 'ObjectId') {
+            sendError(res, 404, 'User not found');
+            return;
+        }
+        sendError(res, 500, 'Server Error - Please try again');
+    }
+});
+
+// @route GET api/users/:id/followers
+// @desc get a user's followers list
+// @access private
+router.get('/:id/followers', privateAccess, async (req: Request, res: Response) => {
+    try {
+        const result = await userService.getUserFollowers(req.params.id);
+        
+        if (!result.success) {
+            sendError(res, 404, result.error || 'User not found');
+            return;
+        }
+
+        res.json(result.results);
+    } catch(err: any) {
+        console.error(err.message);
+        if (err.kind === 'ObjectId') {
+            sendError(res, 404, 'User not found');
+            return;
+        }
         sendError(res, 500, 'Server Error - Please try again');
     }
 });
