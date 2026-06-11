@@ -38,7 +38,7 @@ if (NODE_ENV === 'production') {
 }
 
 // Start the server if not in test mode
-if (process.env.NODE_ENV !== 'test') {
+if (NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`Server listening on ${PORT} in ${NODE_ENV} mode`);
   });

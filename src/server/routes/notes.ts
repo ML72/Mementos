@@ -50,8 +50,8 @@ router.get('/liked', privateAccess, async (req: Request, res: Response) => {
 // @access private
 router.get('/my', privateAccess, async (req: Request, res: Response) => {
     try {
-        const result = await notesService.getOwnNotes(req.user!.id);
-        
+        const result = await notesService.getNotesByCreator(req.user!.id);
+
         if (!result.success) {
             sendError(res, 400, result.error || 'Failed to fetch notes');
             return;
@@ -69,7 +69,7 @@ router.get('/my', privateAccess, async (req: Request, res: Response) => {
 // @access private
 router.get('/user/:id', privateAccess, async (req: Request, res: Response) => {
     try {
-        const result = await notesService.getOwnNotes(req.params.id);
+        const result = await notesService.getNotesByCreator(req.params.id);
 
         if (!result.success) {
             sendError(res, 400, result.error || 'Failed to fetch notes');

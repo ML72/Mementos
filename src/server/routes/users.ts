@@ -87,15 +87,15 @@ router.get('/search', privateAccess, [
     expressQuery('query')
         .isString()
         .trim()
-        .isLength({ min: Object.assign({}, REQUEST_CONSTRAINTS.USER_SEARCH).MIN_QUERY_LENGTH })
-        .withMessage(`Query must be at least ${Object.assign({}, REQUEST_CONSTRAINTS.USER_SEARCH).MIN_QUERY_LENGTH} characters long`),
+        .isLength({ min: REQUEST_CONSTRAINTS.USER_SEARCH.MIN_QUERY_LENGTH })
+        .withMessage(`Query must be at least ${REQUEST_CONSTRAINTS.USER_SEARCH.MIN_QUERY_LENGTH} characters long`),
     expressQuery('page')
         .optional()
         .isInt({ min: 0 })
         .toInt(),
     expressQuery('pageSize')
         .optional()
-        .isInt({ min: 1, max: Object.assign({}, REQUEST_CONSTRAINTS.USER_SEARCH).MAX_PAGE_SIZE })
+        .isInt({ min: 1, max: REQUEST_CONSTRAINTS.USER_SEARCH.MAX_PAGE_SIZE })
         .toInt()
 ], async (req: Request, res: Response) => {
     const errors = validationResult(req);

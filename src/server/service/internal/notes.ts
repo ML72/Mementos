@@ -75,15 +75,15 @@ class NotesService {
         }
     }
 
-    async getOwnNotes(userId: string): Promise<NoteResult> {
+    async getNotesByCreator(creatorId: string): Promise<NoteResult> {
         try {
             const notes = await Note.find({
-                creator: userId
+                creator: creatorId
             }).sort({ dateCreated: -1 });
 
             return { success: true, notes };
         } catch (error: any) {
-            console.error('Get own notes error:', error.message);
+            console.error('Get notes by creator error:', error.message);
             return { success: false, error: 'Server error' };
         }
     }
@@ -140,7 +140,9 @@ class NotesService {
             if (!user) return { success: false, error: 'User not found' };
             if (!note) return { success: false, error: 'Note not found' };
 
-            if (!user.likedNotes.includes(note._id)) {
+            // ObjectId comparison must use .equals(); Array.includes() compares by
+            // reference and would treat re-fetched ids as distinct, allowing duplicates.
+            if (!user.likedNotes.some(id => id.equals(note._id))) {
                 user.likedNotes.push(note._id);
                 await user.save();
             }

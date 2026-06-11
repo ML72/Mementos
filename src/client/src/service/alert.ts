@@ -15,3 +15,14 @@ export const setNewAlert = (
         dispatch(removeAlert({ id }));
     }, timeout);
 }
+
+// Surface an axios error as alert(s). The API returns errors as { errors: [{ msg }] };
+// raise one alert per validation message, falling back to a generic message.
+export const setApiErrorAlert = (dispatch: any, err: any, fallbackMsg: string) => {
+    const errors = err?.response?.data?.errors;
+    if (Array.isArray(errors) && errors.length > 0) {
+        errors.forEach((e: any) => setNewAlert(dispatch, { msg: e.msg || e, alertType: 'error' }));
+    } else {
+        setNewAlert(dispatch, { msg: err?.response?.data?.msg || fallbackMsg, alertType: 'error' });
+    }
+};

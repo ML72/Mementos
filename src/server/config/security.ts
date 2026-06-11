@@ -25,10 +25,10 @@ const setupCORS = (app: Express, whitelist: string) => {
 
     // Development mode with whitelist
     const corsWhitelist = whitelist.split(';');
-    let corsOptions: CorsOptions = {
+    const corsOptions: CorsOptions = {
       origin: function (origin: string | undefined, callback: any) {
-        // If the origin header is on the whitelist or is a server-to-server request
-        if (!origin || corsWhitelist.indexOf(origin) !== -1) {
+        // Allow whitelisted origins and server-to-server requests (no origin header)
+        if (!origin || corsWhitelist.includes(origin)) {
           callback(null, true);
         } else {
           callback(new Error('Not allowed by CORS'));

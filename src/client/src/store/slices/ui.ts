@@ -9,12 +9,12 @@ export const uiSlice = createSlice({
     initialState,
     reducers: {
         addAlert: (state, action) => {
-            let { msg, alertType, id } = action.payload;
+            const { msg, alertType, id } = action.payload;
             state.alerts.push({ msg, alertType, id });
         },
         removeAlert: (state, action) => {
-            let { id } = action.payload;
-            state.alerts = state.alerts.filter((alert: any) => alert.id != id);
+            const { id } = action.payload;
+            state.alerts = state.alerts.filter((alert: any) => alert.id !== id);
         }
     }
 });

@@ -218,8 +218,8 @@ class UserService {
 
             if (limit > 0) {
                 // Use MongoDB built-in text search.
-                // It will automatically use the text index, perform case-insensitive token matching, 
-                // and we can sort by text score (which respects our index weights: fullName = 10, bio = 1).
+                // It will automatically use the text index, perform case-insensitive token matching,
+                // and we can sort by text score (which respects our index weights: fullName = 5, bio = 1).
                 const textMatchQuery: any = { $text: { $search: query } };
                 if (exactMatchFound) {
                     textMatchQuery._id = { $ne: exactUser._id };
