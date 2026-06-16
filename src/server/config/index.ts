@@ -1,2 +1,2 @@
 export { connectDB } from './database';
-export { setupCSP, setupCORS } from './security';
+export { setupCSP, setupCORS, setupWwwRedirect } from './security';

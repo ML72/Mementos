@@ -17,6 +17,7 @@ const MONGO_URI: string = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/de
 const JWT_SECRET: string = process.env.JWT_SECRET || "im-so-secret!";
 const SECURITY_CSP: string = process.env.SECURITY_CSP || "default-src 'self'; script-src 'self' 'unsafe-eval'; frame-src 'self'; style-src 'self' 'unsafe-inline'; img-src * data:; font-src * data:";
 const SECURITY_CORS_WHITELIST: string = process.env.SECURITY_CORS_WHITELIST || (NODE_ENV === 'development' ? 'http://localhost:3000;http://localhost:5173' : '');
+const WWW_REDIRECT_HOST: string = process.env.WWW_REDIRECT_HOST || '';
 
 // Content settings
 const CONTENT_LIMITS: any = {
@@ -45,4 +46,4 @@ const REQUEST_CONSTRAINTS: any = {
     }
 };
 
-export { NODE_ENV, PORT, MONGO_URI, JWT_SECRET, SECURITY_CSP, SECURITY_CORS_WHITELIST, CONTENT_LIMITS, REQUEST_CONSTRAINTS };
+export { NODE_ENV, PORT, MONGO_URI, JWT_SECRET, SECURITY_CSP, SECURITY_CORS_WHITELIST, WWW_REDIRECT_HOST, CONTENT_LIMITS, REQUEST_CONSTRAINTS };

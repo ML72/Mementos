@@ -31,6 +31,18 @@ Set the following environment variables in your Azure App Service:
 - `PORT` - Port number (Azure sets this automatically, usually 8080 or 80)
 - `SECURITY_CSP` - Custom Content Security Policy (has sensible defaults)
 - `SECURITY_CORS_WHITELIST` - CORS whitelist (empty in production for same-origin only)
+- `WWW_REDIRECT_HOST` - Apex domain to 301-redirect to its `www` subdomain (ex. Send `mementos.info/x` to `www.mementos.info/x`); leave unset to disable
+
+## Custom Domain & www Redirect
+
+When the app is served on a custom domain, set `WWW_REDIRECT_HOST` to the **apex** (root) domain to make the Express app issue a `301` redirect from the apex to the `www` subdomain. For example, with `WWW_REDIRECT_HOST=mementos.info`, a request to `https://mementos.info/notes?id=1` redirects to `https://www.mementos.info/notes?id=1`. The protocol and full path + query string are preserved.
+
+Implementation notes:
+- It only matches the bare apex host, so the `www` host, the `*.azurewebsites.net` default host, and `localhost` are left untouched (health probes and local dev are unaffected).
+- It relies on `app.set('trust proxy', true)` so that `req.protocol` and `req.hostname` reflect Azure's `X-Forwarded-Proto` / `X-Forwarded-Host` headers rather than the internal proxy hop.
+- Leaving `WWW_REDIRECT_HOST` unset (the default) disables the redirect entirely; nothing happens in dev or test.
+
+**DNS / Azure requirement:** for the redirect to fire, requests to the apex must actually reach the app. An apex domain cannot be a `CNAME`, so map **both** hostnames to the App Service. Also add **both** as custom domains on the App Service and provision TLS certificates for **both** so the redirect terminates on HTTPS at the apex before sending the browser to `www`.
 
 ## Build Process
 
