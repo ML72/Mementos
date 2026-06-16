@@ -85,6 +85,8 @@ az webapp config appsettings set \
     SCM_DO_BUILD_DURING_DEPLOYMENT="false"
 ```
 
+Note that these are only the basic environment variables necessary for deployment. Check `DEPLOYMENT_OVERVIEW.md` to see a more complete list of environment variables that are configurable.
+
 > **Why `SCM_DO_BUILD_DURING_DEPLOYMENT=false`?** The GitHub Actions workflow ships a
 > fully built package — compiled server (`dist/`), built client (`src/client/dist/`),
 > and pruned production `node_modules` — as a zip. Disabling Oryx's server-side build

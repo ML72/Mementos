@@ -1,13 +1,17 @@
 import express, { Express, Request, Response } from 'express';
 import path from 'path';
-import { connectDB, setupCSP, setupCORS } from './config';
-import { NODE_ENV, PORT, SECURITY_CSP, SECURITY_CORS_WHITELIST } from './settings';
+import { connectDB, setupCSP, setupCORS, setupWwwRedirect } from './config';
+import { NODE_ENV, PORT, SECURITY_CSP, SECURITY_CORS_WHITELIST, WWW_REDIRECT_HOST } from './settings';
 
 import { authRoutes, usersRoutes, notesRoutes } from './routes';
 
 // Init app
 const app: Express = express();
+app.set('trust proxy', true);
 app.use(express.json());
+
+// Redirect the apex domain to its www subdomain (no-op unless WWW_REDIRECT_HOST is set)
+setupWwwRedirect(app, WWW_REDIRECT_HOST);
 
 // Set up security
 setupCSP(app, SECURITY_CSP);
