@@ -52,7 +52,7 @@ az webapp create \
   --name mementos-dev \
   --resource-group rg-mementos-dev \
   --plan plan-mementos-dev \
-  --runtime "NODE:20-lts"
+  --runtime "NODE:24-lts"
 
 # Configure startup command
 az webapp config set \
@@ -81,13 +81,23 @@ az webapp config appsettings set \
     NODE_ENV="production" \
     MONGO_URI="<YOUR-MONGODB-CONNECTION-STRING>" \
     JWT_SECRET="<PASTE-GENERATED-SECRET-HERE>" \
-    PORT="8080"
+    PORT="8080" \
+    SCM_DO_BUILD_DURING_DEPLOYMENT="false"
 ```
+
+> **Why `SCM_DO_BUILD_DURING_DEPLOYMENT=false`?** The GitHub Actions workflow ships a
+> fully built package — compiled server (`dist/`), built client (`src/client/dist/`),
+> and pruned production `node_modules` — as a zip. Disabling Oryx's server-side build
+> avoids a redundant (and potentially failing) rebuild on the App Service host.
 
 ### 4. Create Service Principal for GitHub (5 minutes)
 
+Note that we still use the old method, which means the service principal expires in 1 year and will need to be refreshed.
+
 ```bash
 # Get your subscription ID
+# We set SUBSCRIPTION_ID so that we can use $SUBSCRIPTION_ID in the next command
+# But you can also just run "az account show" and manually place it into the next command
 SUBSCRIPTION_ID=$(az account show --query id --output tsv)
 echo "Subscription ID: $SUBSCRIPTION_ID"
 
@@ -119,6 +129,11 @@ Note that this section only concerns the `dev` environment. Three similar secret
 
 Push code to `env-dev` branch to automatically deploy!
 
+```
+git checkout -b env-dev
+git push -u origin env-dev
+```
+
 **Monitor:** GitHub → Actions tab → Watch deployment progress
 
 **Verify:** Visit `https://mementos-dev.azurewebsites.net`
@@ -146,7 +161,7 @@ az webapp create \
   --name mementos-prod \
   --resource-group rg-mementos-prod \
   --plan plan-mementos-prod \
-  --runtime "NODE:20-lts"
+  --runtime "NODE:24-lts"
 
 az webapp config set \
   --name mementos-prod \
@@ -170,7 +185,8 @@ az webapp config appsettings set \
     NODE_ENV="production" \
     MONGO_URI="YOUR_PROD_MONGODB_STRING" \
     JWT_SECRET="DIFFERENT_SECRET_THAN_DEV" \
-    PORT="8080"
+    PORT="8080" \
+    SCM_DO_BUILD_DURING_DEPLOYMENT="false"
 
 # Enable Always On (keeps app warm, no cold starts)
 az webapp config set \
@@ -223,6 +239,7 @@ git push -u origin env-prod
 | `MONGO_URI` | MongoDB connection | `mongodb+srv://...` |
 | `JWT_SECRET` | Token signing secret | Random base64 string |
 | `PORT` | Port number | `8080` (Azure default) |
+| `SCM_DO_BUILD_DURING_DEPLOYMENT` | Disable Oryx server-side build (we ship a prebuilt zip) | `false` |
 
 ### GitHub Secrets Pattern
 

@@ -14,12 +14,6 @@ jobs:
       matrix:
         node-version: [20.11.0]
 
-    services:
-      # This ensures Docker is available for the job
-      docker:
-        image: docker:20.10.17
-        options: --privileged
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

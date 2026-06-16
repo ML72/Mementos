@@ -151,12 +151,12 @@ jobs:
           name: deployment-package
 
       - name: Login to Azure
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           creds: ${{ secrets[format('AZURE_CREDENTIALS_{0}', needs.setup.outputs.environment)] }}
 
       - name: Deploy to Azure Web App (Zip Deploy)
-        uses: azure/webapps-deploy@v2
+        uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ secrets[format('AZURE_WEBAPP_NAME_{0}', needs.setup.outputs.environment)] }}
           package: deployment.zip
@@ -177,15 +177,16 @@ jobs:
       - name: Check application health
         run: |
           APP_URL="${{ secrets[format('AZURE_WEBAPP_URL_{0}', needs.setup.outputs.environment)] }}"
-          
-          echo "Checking health of: $APP_URL"
-          
-          # Check if the app is responding
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL" || echo "000")
-          
+          HEALTH_URL="${APP_URL%/}/api/health"
+
+          echo "Checking health of: $HEALTH_URL"
+
+          # Hit the dedicated health endpoint (no auth, no DB dependency)
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || echo "000")
+
           echo "HTTP Status: $HTTP_STATUS"
-          
-          if [ "$HTTP_STATUS" -eq "200" ] || [ "$HTTP_STATUS" -eq "301" ] || [ "$HTTP_STATUS" -eq "302" ]; then
+
+          if [ "$HTTP_STATUS" -eq "200" ]; then
             echo "✅ Application is responding correctly"
             exit 0
           else

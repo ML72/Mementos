@@ -19,6 +19,11 @@ if (NODE_ENV !== 'test') {
   connectDB();
 }
 
+// Lightweight health check (no auth, no DB dependency) for deployment probes
+app.get('/api/health', (req: Request, res: Response) => {
+  res.json({ status: 'ok' });
+});
+
 // Routing for API endpoints
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
@@ -27,12 +32,14 @@ app.use('/api/notes', notesRoutes);
 // Serve static assets in production
 if (NODE_ENV === 'production') {
   const clientBuildPath = path.resolve(__dirname, '../src/client/dist');
-  
+
   // Serve static files from the React app build directory
   app.use(express.static(clientBuildPath));
 
-  // Handle React routing - return all requests to React app
-  app.get('*', (req: Request, res: Response) => {
+  // Handle React routing - return all non-API requests to the React app.
+  // Express 5 (path-to-regexp v8) rejects a bare '*' path and throws at startup,
+  // so we use the named wildcard '/*splat'.
+  app.get('/*splat', (req: Request, res: Response) => {
     res.sendFile(path.join(clientBuildPath, 'index.html'));
   });
 }

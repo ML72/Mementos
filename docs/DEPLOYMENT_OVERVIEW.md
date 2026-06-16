@@ -95,7 +95,7 @@ npm run install:all && npm run build
 
 1. Check that environment variables are set correctly
 2. Verify MongoDB connection
-3. Test API endpoints: `https://your-app.azurewebsites.net/api/auth/test`
+3. Test the health endpoint: `https://your-app.azurewebsites.net/api/health` (returns `{"status":"ok"}`)
 4. Test frontend: `https://your-app.azurewebsites.net`
 5. Check application logs in Azure Portal
 
