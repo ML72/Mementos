@@ -5,25 +5,28 @@
   box-sizing: border-box;
 }
 
-/* Custom layout styles */
-html, body, #root {
-  height: 100% !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  box-sizing: border-box;
+/*
+ * The document (<html>) is the single scroll container, so there's exactly one vertical scrollbar.
+ *
+ * Why this matters: previously html, body, AND #root were each pinned to `height: 100% !important`,
+ * which caps them at the viewport height. Once page content overflows, that — combined with
+ * `overflow-x: hidden` (which per the CSS spec forces the other axis's `visible` to compute to
+ * `auto`) — turned each of <html>, <body>, and #root into its own viewport-height scroll container,
+ * producing two/three stacked scrollbars. Letting them size to their content removes the duplicates.
+ *
+ * `overflow-x: hidden` lives ONLY on <html> (the scroller) to clip horizontal overflow. Keeping
+ * body/#root overflow `visible` leaves them out of the scroll-container chain, so the sticky navbar
+ * still sticks to the viewport. Pages set their own min-height (e.g. 100vh) for full-height backgrounds.
+ */
+html {
   overflow-x: hidden;
 }
 
 body {
-  margin: 0 !important;
-  padding: 0 !important;
-  min-height: 100%;
+  min-height: 100vh;
   background: #fff;
-  /* Remove any overflow-y: auto or scroll */
-  overflow-y: visible;
 }
 
-/* Remove forced height: 100vh from any global container */
-.MuiContainer-root {
-  min-height: 0;
+#root {
+  min-height: 100vh;
 }

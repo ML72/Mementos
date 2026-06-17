@@ -28,7 +28,14 @@
         "$oid": "64a819c803d8a0227fda5594"
       }
     ],
-    "likedNotes": [],
+    "likedNotes": [
+      {
+        "$oid": "64a819c803d8a0227fda6011"
+      },
+      {
+        "$oid": "64a819c803d8a0227fda6012"
+      }
+    ],
     "dateCreated": {
       "$date": "2025-08-20T10:42:32.340Z"
     },
@@ -60,7 +67,11 @@
         "$oid": "64a819c803d8a0227fda5591"
       }
     ],
-    "likedNotes": [],
+    "likedNotes": [
+      {
+        "$oid": "64a819c803d8a0227fda6021"
+      }
+    ],
     "dateCreated": {
       "$date": "2025-08-25T11:05:30.000Z"
     },
@@ -95,7 +106,17 @@
         "$oid": "64a819c803d8a0227fda5592"
       }
     ],
-    "likedNotes": [],
+    "likedNotes": [
+      {
+        "$oid": "64a819c803d8a0227fda6001"
+      },
+      {
+        "$oid": "64a819c803d8a0227fda6002"
+      },
+      {
+        "$oid": "64a819c803d8a0227fda6031"
+      }
+    ],
     "dateCreated": {
       "$date": "2025-09-01T14:22:15.100Z"
     },
@@ -127,7 +148,11 @@
         "$oid": "64a819c803d8a0227fda5593"
       }
     ],
-    "likedNotes": [],
+    "likedNotes": [
+      {
+        "$oid": "64a819c803d8a0227fda6001"
+      }
+    ],
     "dateCreated": {
       "$date": "2025-09-10T08:05:45.000Z"
     },
