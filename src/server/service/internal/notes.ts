@@ -154,6 +154,9 @@ class NotesService {
                 user.markModified('feed.authorAffinity');
 
                 await user.save();
+
+                // Maintain the denormalized like counter on the note (atomic to avoid races).
+                await Note.updateOne({ _id: note._id }, { $inc: { likeCount: 1 } });
             }
 
             return { success: true };
@@ -188,6 +191,9 @@ class NotesService {
                     });
                     user.markModified('feed.tagAffinity');
                     user.markModified('feed.authorAffinity');
+
+                    // Maintain the denormalized like counter (guarded so it never goes negative).
+                    await Note.updateOne({ _id: note._id, likeCount: { $gt: 0 } }, { $inc: { likeCount: -1 } });
                 }
             }
 
@@ -202,8 +208,11 @@ class NotesService {
 
     async getLikedNotes(userId: string): Promise<NoteResult> {
         try {
-            const user = await User.findById(userId).populate('likedNotes');
-            
+            const user = await User.findById(userId).populate({
+                path: 'likedNotes',
+                populate: { path: 'creator', select: 'login.email profile.fullName' }
+            });
+
             if (!user) return { success: false, error: 'User not found' };
 
             return { success: true, notes: user.likedNotes as any[] };

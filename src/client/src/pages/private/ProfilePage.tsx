@@ -12,11 +12,14 @@ import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 import { getUserProfile, followUser, unfollowUser } from '../../service/user';
 import { getUserNotes } from '../../service/notes';
 import ExpandableText from '../../components/layout/ExpandableText';
+import LikeButton from '../../components/layout/LikeButton';
+import { useNoteLikes } from '../../hooks/useNoteLikes';
 
 const ProfilePage: React.FC = () => {
   const { userId: profileId } = useParams<{ userId: string }>();
   const { userId: currentUserId } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
+  const { isLiked, likeCountFor, toggleLike } = useNoteLikes();
 
   const [notes, setNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -174,6 +177,14 @@ const ProfilePage: React.FC = () => {
                     {note.subject}
                   </Typography>
                   <ExpandableText text={note.content} maxLength={250} />
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                    <LikeButton
+                      liked={isLiked(note._id)}
+                      count={likeCountFor(note)}
+                      onToggle={() => toggleLike(note)}
+                      readOnly={currentUserId === profileId}
+                    />
+                  </Box>
                 </Paper>
               ))}
             </Stack>

@@ -18,10 +18,10 @@ const Landing: React.FC = () => {
       <Box sx={{ backgroundColor: '#ffffff', minHeight: '100vh', pb: 10 }}>
         {/* Hero Section */}
         <Container maxWidth="lg" sx={{ pt: { xs: 8, md: 16 }, pb: { xs: 8, md: 12 } }}>
-          <Grid container spacing={6} alignItems="center">
+          <Grid container spacing={{ xs: 4, md: 6 }} alignItems="center">
             <Grid size={{ xs: 12, md: 6 }}>
               <Typography variant="h1" sx={{
-                fontSize: { xs: '3rem', md: '4.5rem' },
+                fontSize: { xs: '2.5rem', sm: '3rem', md: '4.5rem' },
                 fontWeight: 700,
                 color: '#111827',
                 lineHeight: 1.1,
@@ -36,8 +36,8 @@ const Landing: React.FC = () => {
                 mb: 5,
                 fontWeight: 400,
                 lineHeight: 1.5,
-                fontSize: '1.25rem',
-                maxWidth: '90%'
+                fontSize: { xs: '1.1rem', md: '1.25rem' },
+                maxWidth: { xs: '100%', md: '90%' }
               }}>
                 Mementos helps you capture your daily learnings and delivers beautifully curated weekly digests to ensure you never forget what matters. Read, retain, and share with a network of lifelong learners.
               </Typography>
@@ -82,7 +82,7 @@ const Landing: React.FC = () => {
             <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex', justifyContent: 'center', position: 'relative' }}>
               <Box sx={{
                 width: '100%',
-                height: '400px',
+                height: { xs: '320px', md: '400px' },
                 position: 'relative',
                 borderRadius: '24px',
                 backgroundColor: '#f9f9f9',
@@ -118,7 +118,7 @@ const Landing: React.FC = () => {
                   borderRadius: '16px',
                   boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
                   border: '1px solid #f0f0f0',
-                  width: '75%',
+                  width: { xs: '85%', sm: '75%' },
                   zIndex: 1
                 }}>
                   <Typography variant="overline" sx={{ color: '#0A66C2', fontWeight: 800, letterSpacing: '1px' }}>Weekly Digest • Vol. 42</Typography>
@@ -186,14 +186,14 @@ const Landing: React.FC = () => {
 
         {/* Deep Dive Section */}
         <Container maxWidth="lg" sx={{ py: { xs: 8, md: 16 } }}>
-          <Grid container spacing={8} alignItems="center">
-            <Grid size={{ xs: 12, md: 6 }}>
+          <Grid container spacing={{ xs: 5, md: 8 }} alignItems="center">
+            <Grid size={{ xs: 12, md: 6 }} sx={{ order: { xs: 2, md: 1 } }}>
               <Box sx={{
                 width: '100%',
-                height: '420px',
+                height: { xs: 'auto', md: '420px' },
                 backgroundColor: '#0d1117',
                 borderRadius: '16px',
-                p: 4,
+                p: { xs: 2.5, md: 4 },
                 display: 'flex',
                 flexDirection: 'column',
                 boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
@@ -204,21 +204,27 @@ const Landing: React.FC = () => {
                   <Box sx={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#ffbd2e' }} />
                   <Box sx={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#27c93f' }} />
                 </Box>
-                <Stack spacing={2} sx={{ fontFamily: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace', fontSize: '0.9rem' }}>
+                <Stack spacing={1.5} sx={{
+                  '& .MuiTypography-root': {
+                    fontFamily: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace',
+                    fontSize: { xs: '0.75rem', md: '0.9rem' },
+                    overflowWrap: 'anywhere'
+                  }
+                }}>
                   <Typography sx={{ color: '#7ee787' }}>$ mementos-core trigger --digest</Typography>
                   <Typography sx={{ color: '#8b949e' }}>[info] Accessing episodic memory vault...</Typography>
                   <Typography sx={{ color: '#8b949e' }}>[info] Evaluating decay curves for 1,420 notes...</Typography>
                   <Typography sx={{ color: '#8b949e' }}>[info] Merging high-value insights from followed network...</Typography>
                   <Typography sx={{ color: '#79c0ff' }}>[success] Digest compiled. Dispatching to user payload.</Typography>
                 </Stack>
-                <Box sx={{ mt: 'auto', p: 2, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', borderLeft: '3px solid #79c0ff' }}>
+                <Box sx={{ mt: { xs: 3, md: 'auto' }, p: 2, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', borderLeft: '3px solid #79c0ff' }}>
                   <Typography sx={{ color: '#c9d1d9', fontSize: '0.875rem', fontStyle: 'italic' }}>
                     "The defining characteristic of an intelligent system is its ability to learn from past experiences without catastrophic forgetting."
                   </Typography>
                 </Box>
               </Box>
             </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
+            <Grid size={{ xs: 12, md: 6 }} sx={{ order: { xs: 1, md: 2 } }}>
               <Typography variant="h3" sx={{ fontWeight: 700, color: '#111827', mb: 3, fontSize: { xs: '2rem', md: '2.5rem' }, letterSpacing: '-0.5px' }}>
                 Train your brain like a smarter model.
               </Typography>
@@ -263,13 +269,13 @@ const Landing: React.FC = () => {
           <Box sx={{
             backgroundColor: '#111827',
             borderRadius: '24px',
-            py: 10,
-            px: 4,
+            py: { xs: 6, md: 10 },
+            px: { xs: 3, md: 4 },
             textAlign: 'center',
             color: '#ffffff',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
           }}>
-            <Typography variant="h3" sx={{ fontWeight: 700, mb: 3, letterSpacing: '-1px' }}>
+            <Typography variant="h3" sx={{ fontWeight: 700, mb: 3, letterSpacing: '-1px', fontSize: { xs: '1.875rem', md: '3rem' } }}>
               Ready to build your memory buffer?
             </Typography>
             <Typography sx={{ color: '#9CA3AF', mb: 5, fontSize: '1.125rem', maxWidth: '600px', mx: 'auto', lineHeight: 1.6 }}>

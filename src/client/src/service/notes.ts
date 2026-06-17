@@ -117,3 +117,40 @@ export const getUserNotes = async (dispatch: any, userId: string) => {
         return null;
     }
 };
+
+// Like a note. Liking also feeds the feed-ranking preference model (tags + author).
+// No success alert: the toggled heart is the feedback. Returns true on success.
+export const likeNote = async (dispatch: any, id: string): Promise<boolean> => {
+    try {
+        await axios.post(`/api/notes/${id}/like`);
+        return true;
+    } catch (err: any) {
+        const msg = err.response?.data?.errors?.[0]?.msg || 'Failed to like note';
+        setNewAlert(dispatch, { msg, alertType: 'error' });
+        return false;
+    }
+};
+
+// Unlike a note. Returns true on success.
+export const unlikeNote = async (dispatch: any, id: string): Promise<boolean> => {
+    try {
+        await axios.post(`/api/notes/${id}/unlike`);
+        return true;
+    } catch (err: any) {
+        const msg = err.response?.data?.errors?.[0]?.msg || 'Failed to unlike note';
+        setNewAlert(dispatch, { msg, alertType: 'error' });
+        return false;
+    }
+};
+
+// Get the current user's liked notes (used to seed liked state in the UI).
+export const getLikedNotes = async (dispatch: any) => {
+    try {
+        const res = await axios.get('/api/notes/liked');
+        return res.data;
+    } catch (err: any) {
+        const msg = err.response?.data?.errors?.[0]?.msg || 'Failed to fetch liked notes';
+        setNewAlert(dispatch, { msg, alertType: 'error' });
+        return null;
+    }
+};

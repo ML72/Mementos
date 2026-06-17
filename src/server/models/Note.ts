@@ -39,6 +39,14 @@ const NoteSchema = new Schema({
         max: 10,
         default: 5
     },
+    // Denormalized count of how many users have liked this note. The source of truth is each
+    // user's `likedNotes` array; this counter is maintained in NotesService.likeNote/unlikeNote
+    // so the value can be read with the note instead of aggregating across all users.
+    likeCount: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
     dateCreated: {
         type: Date,
         default: Date.now

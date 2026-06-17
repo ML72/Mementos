@@ -204,6 +204,8 @@ describe('Notes Endpoints Integration', () => {
             expect(getLikedRes.statusCode).toEqual(200);
             expect(getLikedRes.body.length).toBe(1);
             expect(getLikedRes.body[0]._id).toBe(noteId);
+            // Liked notes come with their author populated so the UI can show who wrote them.
+            expect(getLikedRes.body[0].creator?.profile?.fullName).toBeTruthy();
 
             // User1 unlikes the note
             const unlikeRes = await request(app)
@@ -220,6 +222,39 @@ describe('Notes Endpoints Integration', () => {
                 .send();
             expect(getLikedRes2.statusCode).toEqual(200);
             expect(getLikedRes2.body.length).toBe(0);
+        });
+
+        it('should maintain a denormalized like count on the note', async () => {
+            const { token: likerToken } = await createUserAndGetToken('count-liker@test.com');
+            const { token: authorToken } = await createUserAndGetToken('count-author@test.com');
+
+            const createRes = await request(app)
+                .post('/api/notes')
+                .set('x-auth-token', authorToken)
+                .send({ subject: 'Count me', content: 'Content' });
+            const noteId = createRes.body._id;
+            expect(createRes.body.likeCount).toBe(0);
+
+            const readCount = async () => {
+                const res = await request(app).get(`/api/notes/${noteId}`).set('x-auth-token', likerToken).send();
+                return res.body.likeCount;
+            };
+
+            // Like increments the count
+            await request(app).post(`/api/notes/${noteId}/like`).set('x-auth-token', likerToken).send();
+            expect(await readCount()).toBe(1);
+
+            // Liking again is idempotent (no double count)
+            await request(app).post(`/api/notes/${noteId}/like`).set('x-auth-token', likerToken).send();
+            expect(await readCount()).toBe(1);
+
+            // Unlike decrements the count
+            await request(app).post(`/api/notes/${noteId}/unlike`).set('x-auth-token', likerToken).send();
+            expect(await readCount()).toBe(0);
+
+            // Unliking again does not drive the count negative
+            await request(app).post(`/api/notes/${noteId}/unlike`).set('x-auth-token', likerToken).send();
+            expect(await readCount()).toBe(0);
         });
     });
 

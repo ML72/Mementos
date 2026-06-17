@@ -9,11 +9,14 @@ import { getFeed } from '../../service/notes';
 import CustomPage from '../../components/layout/CustomPage';
 import ExpandableText from '../../components/layout/ExpandableText';
 import MarkdownViewer from '../../components/layout/MarkdownViewer';
+import LikeButton from '../../components/layout/LikeButton';
+import { useNoteLikes } from '../../hooks/useNoteLikes';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 
 const HomePage: React.FC = () => {
   const { email, userId, fullName, token } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
+  const { isLiked, likeCountFor, toggleLike } = useNoteLikes();
 
   const [notes, setNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -189,22 +192,28 @@ const HomePage: React.FC = () => {
                       
                       <ExpandableText text={note.content} maxLength={250} />
 
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Stack direction="row" spacing={1}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, mt: 2 }}>
+                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ flex: 1 }}>
                           {note.tags && note.tags.map((tag: string, idx: number) => (
-                            <Chip 
-                              key={idx} 
-                              label={tag} 
-                              size="small" 
-                              sx={{ 
-                                backgroundColor: '#F3F4F6', 
+                            <Chip
+                              key={idx}
+                              label={tag}
+                              size="small"
+                              sx={{
+                                backgroundColor: '#F3F4F6',
                                 color: '#4B5563',
                                 fontWeight: 500,
                                 borderRadius: '6px'
-                              }} 
+                              }}
                             />
                           ))}
                         </Stack>
+                        <LikeButton
+                          liked={isLiked(note._id)}
+                          count={likeCountFor(note)}
+                          onToggle={() => toggleLike(note)}
+                          readOnly={note.creator?._id === userId}
+                        />
                       </Box>
                     </Paper>
                   ))}
