@@ -1,4 +1,4 @@
-export { AuthService, UserService, NotesService } from './internal';
+export { AuthService, UserService, NotesService, FeedService } from './internal';
 export type {
     AuthenticateUserResult,
     GetUserResult,
@@ -6,5 +6,6 @@ export type {
     CreateUserResult,
     CreateNoteData,
     UpdateNoteData,
-    NoteResult
+    NoteResult,
+    FeedResult
 } from './internal';

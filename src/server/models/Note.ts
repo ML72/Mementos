@@ -46,8 +46,23 @@ const NoteSchema = new Schema({
     lastUpdated: {
         type: Date,
         default: Date.now
+    },
+    // Spaced-repetition review state. Only a note's creator reviews their own note, so this
+    // is one record per note (O(notes)), never O(users x notes). `nextDueAt` is a denormalized,
+    // indexable "due time" so the feed can pull a user's most-overdue notes with one range scan.
+    // New notes default to due-now (nextDueAt = creation time) so they enter review immediately.
+    review: {
+        lastReviewedAt: { type: Date, default: null },
+        reviewCount: { type: Number, default: 0 },
+        nextDueAt: { type: Date, default: Date.now }
     }
 });
+
+// Feed candidate-generation indexes:
+//  - self / review track: a user's own notes ordered by how due they are (ascending nextDueAt)
+//  - others / discovery track: most recent notes by a set of creators (also speeds getNotesByCreator)
+NoteSchema.index({ creator: 1, 'review.nextDueAt': 1 });
+NoteSchema.index({ creator: 1, dateCreated: -1 });
 
 const Note = model('Note', NoteSchema);
 export default Note;

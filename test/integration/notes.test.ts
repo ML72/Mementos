@@ -238,17 +238,17 @@ describe('Notes Endpoints Integration', () => {
 
             // Initially user1 should only see u1
             const feedRes1 = await request(app).get('/api/notes').set('x-auth-token', token1).send();
-            expect(feedRes1.body.length).toBe(1);
-            expect(feedRes1.body[0].subject).toBe('u1');
+            expect(feedRes1.body.notes.length).toBe(1);
+            expect(feedRes1.body.notes[0].subject).toBe('u1');
 
             // User1 follows User2
             await request(app).post(`/api/users/${id2}/follow`).set('x-auth-token', token1).send();
 
             // Now user1 should see u1 and u2 (but not u3)
             const feedRes2 = await request(app).get('/api/notes').set('x-auth-token', token1).send();
-            expect(feedRes2.body.length).toBe(2);
-            
-            const subjects = feedRes2.body.map((n: any) => n.subject);
+            expect(feedRes2.body.notes.length).toBe(2);
+
+            const subjects = feedRes2.body.notes.map((n: any) => n.subject);
             expect(subjects).toContain('u1');
             expect(subjects).toContain('u2');
             expect(subjects).not.toContain('u3');

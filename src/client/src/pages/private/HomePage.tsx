@@ -17,13 +17,16 @@ const HomePage: React.FC = () => {
 
   const [notes, setNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     const fetchNotes = async () => {
       setLoading(true);
       const data = await getFeed(dispatch);
       if (data) {
-        setNotes(data);
+        setNotes(data.notes || []);
+        setHasMore(Boolean(data.hasMore));
       }
       setLoading(false);
     };
@@ -32,6 +35,22 @@ const HomePage: React.FC = () => {
       fetchNotes();
     }
   }, [dispatch, token]);
+
+  // The feed is stateful, so re-fetching returns the next-best page. Append only
+  // notes we don't already have (dedupe by id) in case content overlaps.
+  const handleLoadMore = async () => {
+    setLoadingMore(true);
+    const data = await getFeed(dispatch);
+    if (data) {
+      setNotes(prev => {
+        const seen = new Set(prev.map((n: any) => n._id));
+        const fresh = (data.notes || []).filter((n: any) => !seen.has(n._id));
+        return [...prev, ...fresh];
+      });
+      setHasMore(Boolean(data.hasMore));
+    }
+    setLoadingMore(false);
+  };
 
   const getInitial = (nameOrEmail?: string | null) => {
     if (!nameOrEmail) return '?';
@@ -125,6 +144,7 @@ const HomePage: React.FC = () => {
                   <Typography variant="body2" sx={{ color: '#9CA3AF', mt: 1 }}>Be the first to capture something interesting!</Typography>
                 </Paper>
               ) : (
+                <>
                 <Stack spacing={3}>
                   {notes.map((note) => (
                     <Paper key={note._id} elevation={0} sx={{ 
@@ -189,6 +209,28 @@ const HomePage: React.FC = () => {
                     </Paper>
                   ))}
                 </Stack>
+                {hasMore && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                    <Button
+                      onClick={handleLoadMore}
+                      disabled={loadingMore}
+                      variant="outlined"
+                      sx={{
+                        px: 4,
+                        py: 1.25,
+                        fontWeight: 600,
+                        color: '#374151',
+                        borderColor: '#D1D5DB',
+                        borderRadius: '8px',
+                        textTransform: 'none',
+                        '&:hover': { backgroundColor: '#F3F4F6', borderColor: '#9CA3AF' }
+                      }}
+                    >
+                      {loadingMore ? 'Loading…' : 'Load more'}
+                    </Button>
+                  </Box>
+                )}
+                </>
               )}
             </Grid>
 

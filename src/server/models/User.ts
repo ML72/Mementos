@@ -48,6 +48,15 @@ const UserSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Note'
     }],
+    // Per-user feed personalization state. Deliberately bounded so total storage scales
+    // O(users), independent of how many notes/tags/follows exist in the system:
+    //  - tagAffinity / authorAffinity: small top-K preference maps, online-learned from likes
+    //  - recentlySeen: capped ring buffer of recently served notes (powers "not seen in a while")
+    feed: {
+        tagAffinity: { type: Map, of: Number, default: () => ({}) },
+        authorAffinity: { type: Map, of: Number, default: () => ({}) },
+        recentlySeen: { type: [Schema.Types.ObjectId], default: () => [] }
+    },
     dateCreated: {
         type: Date,
         default: Date.now

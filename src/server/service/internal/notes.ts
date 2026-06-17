@@ -1,4 +1,6 @@
 import { Note, User } from '../../models';
+import { FEED } from '../../settings';
+import { bumpAffinity, computeNextDueAt, ensureFeedMaps } from './feed';
 
 export interface CreateNoteData {
     subject: string;
@@ -54,27 +56,6 @@ class NotesService {
         }
     }
 
-    async getFeed(userId: string): Promise<NoteResult> {
-        try {
-            const currentUser = await User.findById(userId);
-            if (!currentUser) {
-                return { success: false, error: 'User not found' };
-            }
-
-            // Target user's own notes and their followed users' notes
-            const authors = [userId, ...currentUser.following];
-            
-            const notes = await Note.find({
-                creator: { $in: authors }
-            }).sort({ dateCreated: -1 }).populate('creator', 'login.email profile.fullName');
-
-            return { success: true, notes };
-        } catch (error: any) {
-            console.error('Get feed error:', error.message);
-            return { success: false, error: 'Server error' };
-        }
-    }
-
     async getNotesByCreator(creatorId: string): Promise<NoteResult> {
         try {
             const notes = await Note.find({
@@ -102,7 +83,18 @@ class NotesService {
             if (updateData.subject) note.subject = updateData.subject;
             if (updateData.content) note.content = updateData.content;
             if (updateData.tags) note.tags = updateData.tags;
-            if (updateData.importance !== undefined) note.importance = updateData.importance;
+            if (updateData.importance !== undefined) {
+                note.importance = updateData.importance;
+                // Importance changes the review spacing, so reschedule already-reviewed notes.
+                // Never-reviewed notes stay due-now and are left untouched.
+                if ((note.review?.reviewCount ?? 0) > 0 && note.review?.lastReviewedAt) {
+                    note.review.nextDueAt = computeNextDueAt(
+                        note.review.reviewCount!,
+                        note.importance,
+                        new Date(note.review.lastReviewedAt).getTime()
+                    );
+                }
+            }
             note.lastUpdated = new Date();
 
             await note.save();
@@ -144,6 +136,23 @@ class NotesService {
             // reference and would treat re-fetched ids as distinct, allowing duplicates.
             if (!user.likedNotes.some(id => id.equals(note._id))) {
                 user.likedNotes.push(note._id);
+
+                // Online preference learning: a like is a strong positive signal for the
+                // note's tags and its author. The maps are bounded, so storage stays O(users).
+                ensureFeedMaps(user);
+                bumpAffinity(user.feed!.tagAffinity as any, note.tags || [], FEED.AFFINITY.W_LIKE_TAG, {
+                    maxEntries: FEED.AFFINITY.MAX_TAGS,
+                    minScore: FEED.AFFINITY.MIN_SCORE,
+                    decay: FEED.AFFINITY.DECAY
+                });
+                bumpAffinity(user.feed!.authorAffinity as any, [note.creator.toString()], FEED.AFFINITY.W_LIKE_AUTHOR, {
+                    maxEntries: FEED.AFFINITY.MAX_AUTHORS,
+                    minScore: FEED.AFFINITY.MIN_SCORE,
+                    decay: FEED.AFFINITY.DECAY
+                });
+                user.markModified('feed.tagAffinity');
+                user.markModified('feed.authorAffinity');
+
                 await user.save();
             }
 
@@ -160,7 +169,28 @@ class NotesService {
             
             if (!user) return { success: false, error: 'User not found' };
 
+            const wasLiked = user.likedNotes.some(id => id.toString() === noteId);
             user.likedNotes = user.likedNotes.filter(id => id.toString() !== noteId);
+
+            if (wasLiked) {
+                // Unwind the affinity contribution the original like added. No global decay
+                // here so unliking is a clean reversal rather than another "event".
+                const note = await Note.findById(noteId);
+                if (note) {
+                    ensureFeedMaps(user);
+                    bumpAffinity(user.feed!.tagAffinity as any, note.tags || [], -FEED.AFFINITY.W_LIKE_TAG, {
+                        maxEntries: FEED.AFFINITY.MAX_TAGS,
+                        minScore: FEED.AFFINITY.MIN_SCORE
+                    });
+                    bumpAffinity(user.feed!.authorAffinity as any, [note.creator.toString()], -FEED.AFFINITY.W_LIKE_AUTHOR, {
+                        maxEntries: FEED.AFFINITY.MAX_AUTHORS,
+                        minScore: FEED.AFFINITY.MIN_SCORE
+                    });
+                    user.markModified('feed.tagAffinity');
+                    user.markModified('feed.authorAffinity');
+                }
+            }
+
             await user.save();
 
             return { success: true };

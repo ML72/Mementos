@@ -16,10 +16,12 @@ export const getMyNotes = async (dispatch: any) => {
     }
 };
 
-// Get feed notes
-export const getFeed = async (dispatch: any) => {
+// Get a page of the personalized feed.
+// Returns { notes, hasMore }. The feed is stateful: each call serves the next-best page
+// and records impressions server-side, so calling again returns more (no page cursor needed).
+export const getFeed = async (dispatch: any, limit?: number) => {
     try {
-        const res = await axios.get('/api/notes');
+        const res = await axios.get('/api/notes', { params: limit ? { limit } : {} });
         return res.data;
     } catch (err: any) {
         let msg = 'Failed to fetch feed';

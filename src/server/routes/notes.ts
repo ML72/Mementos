@@ -1,25 +1,46 @@
 import { Request, Response, Router } from 'express';
-import { check, validationResult } from 'express-validator';
+import { check, validationResult, query as expressQuery } from 'express-validator';
 import { privateAccess } from '../middleware';
-import { NotesService } from '../service';
+import { NotesService, FeedService } from '../service';
 import { sendError } from '../util';
+import { FEED } from '../settings';
 
 const router = Router();
 const notesService = new NotesService();
+const feedService = new FeedService();
 
 // @route GET api/notes
-// @desc get feed of notes (own + followed users)
+// @desc get the personalized feed (spaced-repetition review of own notes blended with
+//       a freshness/affinity-ranked discovery feed from followed users). See
+//       docs/ALGORITHM_FEED.md. Stateful, cursorless pagination: each call serves the
+//       next-best page and records impressions, so calling again returns more.
 // @access private
-router.get('/', privateAccess, async (req: Request, res: Response) => {
+router.get('/', privateAccess, [
+    expressQuery('limit')
+        .optional()
+        .isInt({ min: 1, max: FEED.PAGE_SIZE_MAX })
+        .toInt()
+], async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        sendError(res, 400, errors.array().map(e => e.msg));
+        return;
+    }
+
     try {
-        const result = await notesService.getFeed(req.user!.id);
-        
+        let limit = FEED.PAGE_SIZE_DEFAULT;
+        if (req.query.limit !== undefined && !Number.isNaN(Number(req.query.limit))) {
+            limit = Number(req.query.limit);
+        }
+
+        const result = await feedService.getFeed(req.user!.id, limit);
+
         if (!result.success) {
             sendError(res, 400, result.error || 'Failed to fetch notes');
             return;
         }
 
-        res.json(result.notes);
+        res.json({ notes: result.notes, hasMore: result.hasMore });
     } catch(err: any) {
         console.error(err.message);
         sendError(res, 500, 'Server Error - Please try again');
