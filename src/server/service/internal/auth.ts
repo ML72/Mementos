@@ -40,7 +40,13 @@ class AuthService {
 
     async getUserById(userId: string): Promise<GetUserResult> {
         try {
-            const user = await User.findById(userId).select('-login.password').lean();
+            // Never let credential material leave the server: the password hash, the whole
+            // passwordReset subtree, and the unsubscribe token (a bearer credential for the
+            // one-click unsubscribe endpoint) are all projected out. This is the only place
+            // that returns a raw user document; every other read maps to an explicit whitelist.
+            const user = await User.findById(userId)
+                .select('-login.password -passwordReset -settings.email.unsubscribeToken')
+                .lean();
             if (!user) {
                 return { success: false, error: 'User not found' };
             }

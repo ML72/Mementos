@@ -20,6 +20,8 @@ The application is deployed as a single unit where:
 
 ## Environment Variables
 
+For the complete list with defaults, see [ENVIRONMENT_OVERVIEW.md](./ENVIRONMENT_OVERVIEW.md).
+
 Set the following environment variables in your Azure App Service:
 
 ### Required
