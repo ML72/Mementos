@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Container, Typography, Box, Paper, Grid, Avatar, Button, Stack, CircularProgress, Chip 
+  Container, Typography, Box, Paper, Avatar, Button, Stack, CircularProgress 
 } from '@mui/material';
 import { useSelector, useDispatch } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import { RootState } from '../../store/store';
-import { setNewAlert } from '../../service/alert';
 import CustomPage from '../../components/layout/CustomPage';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
@@ -85,11 +84,6 @@ const ProfilePage: React.FC = () => {
   const displayName = (user?: any) => {
     if (!user) return 'Unknown User';
     return user.profile?.fullName || user.fullName || user.login?.email || 'Unknown User';
-  };
-
-  const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
-    return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
   return (

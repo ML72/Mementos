@@ -3,11 +3,7 @@ import { Alert as MUIAlert, Snackbar } from '@mui/material';
 import { useSelector } from 'react-redux';
 import { selectAlertState } from '../../store/slices/ui';
 
-interface ComponentProps {
-
-}
-
-const Alert: React.FC<ComponentProps> = (props: ComponentProps) => {
+const Alert: React.FC = () => {
   const alerts = useSelector(selectAlertState);
 
   // Responsive: bottom right on desktop, full width bottom center on mobile

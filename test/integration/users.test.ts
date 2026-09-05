@@ -2,7 +2,6 @@ import request from 'supertest';
 import mongoose from 'mongoose';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import app from '../../src/server/index';
-// @ts-ignore
 import { User } from '../../src/server/models';
 
 const TEST_MONGO_URI = 'mongodb://127.0.0.1:27017/mementos_test_users';
@@ -42,7 +41,7 @@ describe('Users Endpoints Integration', () => {
     describe('POST /api/users/:id/follow & /unfollow', () => {
         it('should allow user to follow and unfollow another user', async () => {
             const { token: user1Token } = await createUserAndGetToken('user1@test.com');
-            const { token: user2Token } = await createUserAndGetToken('user2@test.com');
+            await createUserAndGetToken('user2@test.com');
 
             const user2Id = await getUserIdFromEmail('user2@test.com');
 
@@ -94,7 +93,7 @@ describe('Users Endpoints Integration', () => {
     describe('GET /api/users/:id/profile', () => {
         it('should get a user profile with bio, followers, following counts', async () => {
             const { token: user1Token } = await createUserAndGetToken('user1@test.com');
-            const { token: user2Token } = await createUserAndGetToken('user2@test.com');
+            await createUserAndGetToken('user2@test.com');
             const user2Id = await getUserIdFromEmail('user2@test.com');
 
             await User.updateOne({ _id: user2Id }, { 'profile.bio': 'Hello World!' });

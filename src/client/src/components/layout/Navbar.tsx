@@ -1,15 +1,13 @@
 import React from 'react';
 import { Box, Typography, Stack, Button, IconButton, Menu, MenuItem } from '@mui/material';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../service/auth';
 import { RootState } from '../../store/store';
 import MenuIcon from '@mui/icons-material/Menu';
-import DashboardIcon from '@mui/icons-material/Dashboard';
 
 const Navbar: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const dispatch = useDispatch();
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
   const userId = useSelector((state: RootState) => state.auth.userId);

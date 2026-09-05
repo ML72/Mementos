@@ -2,7 +2,6 @@ import request from 'supertest';
 import mongoose from 'mongoose';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import app from '../../src/server/index';
-// @ts-ignore
 import { User } from '../../src/server/models';
 
 const TEST_MONGO_URI = 'mongodb://127.0.0.1:27017/mementos_test';
@@ -43,9 +42,7 @@ describe('Auth Endpoints Integration Services', () => {
             // Verify user in DB has nested login fields
             const user = await User.findOne({ 'login.email': 'test@example.com' });
             expect(user).toBeTruthy();
-            // @ts-ignore
             expect(user?.login?.email).toBe('test@example.com');
-            // @ts-ignore
             expect(user?.login?.password).toBeTruthy();
         });
     });

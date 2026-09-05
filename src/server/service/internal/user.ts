@@ -1,6 +1,5 @@
 import bcrypt from 'bcryptjs';
 import { sign } from 'jsonwebtoken';
-import mongoose from 'mongoose';
 import { User } from '../../models';
 import { JWT_SECRET } from '../../settings';
 
@@ -187,7 +186,7 @@ class UserService {
     async searchUsers(query: string, page: number, pageSize: number): Promise<{ success: boolean, results?: any[], error?: string }> {
         try {
             const isObjectId = /^[0-9a-fA-F]{24}$/.test(query);
-            let results: any[] = [];
+            const results: any[] = [];
             let exactMatchFound = false;
             let exactUser: any = null;
 

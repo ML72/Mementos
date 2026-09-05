@@ -71,7 +71,7 @@ class NotesService {
 
     async updateNote(userId: string, noteId: string, updateData: UpdateNoteData): Promise<NoteResult> {
         try {
-            let note = await Note.findById(noteId);
+            const note = await Note.findById(noteId);
             if (!note) {
                 return { success: false, error: 'Note not found' };
             }

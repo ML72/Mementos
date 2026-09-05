@@ -24,7 +24,7 @@ const privateAccess = (req: Request, res: Response, next: NextFunction): void =>
         const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
         req.user = decoded.user;
         next();
-    } catch(err) {
+    } catch {
         sendError(res, 401, 'Token is not valid', { is_token_invalid: true });
         return;
     }

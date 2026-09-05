@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Container,
   Typography,
@@ -20,24 +20,17 @@ const Login: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const [tabVal, setTabVal] = useState(0);
+  // The active tab is derived from the URL (?tab=signup) rather than mirrored into state:
+  // switching tabs is then a single navigation, and the two can never disagree.
+  const tabVal = new URLSearchParams(location.search).get('tab') === 'signup' ? 1 : 0;
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('tab') === 'signup') {
-      setTabVal(1);
-    } else {
-      setTabVal(0);
-    }
-  }, [location.search]);
-
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabVal(newValue);    setFullName('');    setEmail('');
+    setFullName('');    setEmail('');
     setPassword('');
     setConfirmPassword('');
     // Optionally update the URL to match the new tab

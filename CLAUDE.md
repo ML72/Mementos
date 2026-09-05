@@ -31,7 +31,9 @@ npm test                # jest integration tests (Docker Mongo must be running)
 npx jest test/integration/notes.test.ts            # single test file
 npx jest -t "should register a new user"           # single test by name
 
-npm run lint --prefix src/client   # eslint (client only; no server lint configured)
+npm run lint            # eslint over both packages
+npm run lint:server     # root package only (src/server, src/types, test/, root configs)
+npm run lint:client     # client package only
 ```
 
 The Vite dev server proxies `/api/*` to `http://localhost:3000`, so the client talks to the API with same-origin relative URLs in every environment.
@@ -60,7 +62,7 @@ When adding an endpoint, follow the chain: validate in the route → call/extend
 `src/client/src`:
 
 - **State:** Redux Toolkit store (`store/store.ts`) with `auth` and `ui` slices. `redux-persist` persists **only the `auth` slice** to localStorage. `RootState` is exported from the store.
-- **API calls:** `service/*.ts` modules wrap axios. An axios **request interceptor** (`service/auth.ts`) reads the token from the Redux store and attaches `x-auth-token` on every request. Service functions take `dispatch` as their first arg, return `null`/`false` on failure, and surface errors via alerts — components generally don't handle API errors themselves. Use the shared `setApiErrorAlert(dispatch, err, fallbackMsg)` helper (`service/alert.ts`) in catch blocks; it reads `err.response.data.errors[].msg` and raises one alert per message, falling back to `fallbackMsg`. Don't re-implement that parsing inline (and note each error element is an object `{ msg }`, not a string).
+- **API calls:** `service/*.ts` modules wrap axios. Both axios **interceptors** live in `service/interceptors.ts` and are installed once from `main.tsx` via `setupAxiosInterceptors`, which takes `getToken`/`onTokenInvalid` as injected deps so the module imports neither the store nor the auth service: the request interceptor attaches `x-auth-token` to every request, and the response interceptor signs the user out (`handleTokenInvalid`) as soon as any response carries `is_token_invalid: true`, then re-rejects so per-call error handling still runs. Service functions take `dispatch` as their first arg, return `null`/`false` on failure, and surface errors via alerts — components generally don't handle API errors themselves. Use the shared `setApiErrorAlert(dispatch, err, fallbackMsg)` helper (`service/alert.ts`) in catch blocks; it reads `err.response.data.errors[].msg` and raises one alert per message, falling back to `fallbackMsg`. Don't re-implement that parsing inline (and note each error element is an object `{ msg }`, not a string).
 - **Routing/permissions:** `App.tsx` defines all routes. `PublicPage` and `AuthenticatedPage` (in `components/permissions/`) gate access; `AuthenticatedPage` takes `allowedRoles`. Private pages live in `pages/private`, public in `pages/public`.
 - **UI:** MUI (`@mui/material`) + Emotion. Notes render Markdown with math via `react-markdown` + `remark-math` + `rehype-katex`. The people/graph view uses `reagraph`.
 
@@ -80,3 +82,9 @@ In production (`NODE_ENV=production`) the Express server additionally serves the
 - The root `package.json` lists `react-router` v5 in dependencies, but the client actually uses v7 (declared in `src/client/package.json`). Treat the client's manifest as authoritative for frontend deps.
 - `tsc` (server build) only includes `src/server` and `src/types`; the client is built separately by Vite.
 - The `@/*` → `src/*` path alias is configured for Jest only, not for the server runtime.
+- **ESLint stays on the 9.x line.** Each package has its own flat config (`eslint.config.js` at the
+  root, `src/client/eslint.config.js`) matching the two-package split. ESLint 10 needs Node
+  `^20.19 || ^22.13 || >=24`, but `engines` and both GitHub workflows pin Node 20.11.0, and
+  `eslint-plugin-react` (7.37.5) declares no ESLint 10 peer support — so moving to 10 means
+  bumping the Node runtime first. `@typescript-eslint/no-explicit-any` is off on purpose: `any`
+  is idiomatic here (`dispatch: any`, `err: any`, `noImplicitAny: false`).

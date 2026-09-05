@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, TextField, Chip, Stack } from '@mui/material';
+import { Box, TextField, Chip } from '@mui/material';
 
 interface TagInputProps {
   tags: string[];

@@ -2,7 +2,6 @@ import request from 'supertest';
 import mongoose from 'mongoose';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import app from '../../src/server/index';
-// @ts-ignore
 import { User, Note } from '../../src/server/models';
 
 const TEST_MONGO_URI = 'mongodb://127.0.0.1:27017/mementos_test_notes';
@@ -43,7 +42,6 @@ describe('Notes Endpoints Integration', () => {
     describe('Notes CRUD', () => {
         it('should create, read, update and delete a note', async () => {
             const { token } = await createUserAndGetToken('creator@test.com');
-            const userId = await getUserIdFromEmail('creator@test.com');
 
             // 1. Create
             const createRes = await request(app)

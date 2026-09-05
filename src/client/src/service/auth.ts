@@ -1,18 +1,7 @@
 import axios from 'axios';
 import { setAuth, clearAuth } from '../store/slices/auth';
 import { setNewAlert } from './alert';
-import { store } from '../store/store';
-
-// Set up axios interceptor to dynamically attach token from store
-axios.interceptors.request.use((config) => {
-  const token = store.getState().auth.token;
-  if (token) {
-    config.headers['x-auth-token'] = token;
-  }
-  return config;
-}, (error) => {
-  return Promise.reject(error);
-});
+// The axios request/response interceptors live in ./interceptors.ts and are installed in main.tsx.
 
 // Helper function to set axios auth header (legacy, now handled by interceptor but kept for compatibility)
 const setAuthHeader = (token: string) => {

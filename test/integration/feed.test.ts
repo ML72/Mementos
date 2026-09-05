@@ -2,7 +2,6 @@ import request from 'supertest';
 import mongoose from 'mongoose';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import app from '../../src/server/index';
-// @ts-ignore
 import { User, Note } from '../../src/server/models';
 
 const TEST_MONGO_URI = 'mongodb://127.0.0.1:27017/mementos_test_feed';

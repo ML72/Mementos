@@ -63,7 +63,7 @@ const NoteEditorPage: React.FC = () => {
         const res = await createNote(dispatch, noteData);
         if (res) navigate('/notes');
       }
-    } catch (err: any) {
+    } catch {
       setNewAlert(dispatch, { msg: 'Failed to save note', alertType: 'error' });
     } finally {
       setSubmitting(false);

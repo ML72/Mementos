@@ -8,7 +8,6 @@ import { RootState } from '../../store/store';
 import { getFeed } from '../../service/notes';
 import CustomPage from '../../components/layout/CustomPage';
 import ExpandableText from '../../components/layout/ExpandableText';
-import MarkdownViewer from '../../components/layout/MarkdownViewer';
 import LikeButton from '../../components/layout/LikeButton';
 import { useNoteLikes } from '../../hooks/useNoteLikes';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';

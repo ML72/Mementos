@@ -36,7 +36,7 @@ const LikeButton: React.FC<LikeButtonProps> = ({ liked, count, onToggle, readOnl
     <Box sx={{ display: 'inline-flex', alignItems: 'center' }}>
       <Tooltip title={liked ? 'Unlike' : 'Like'}>
         <IconButton
-          onClick={(e) => { e.stopPropagation(); onToggle && onToggle(); }}
+          onClick={(e) => { e.stopPropagation(); onToggle?.(); }}
           size="small"
           aria-label={liked ? 'Unlike note' : 'Like note'}
           sx={{
