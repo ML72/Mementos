@@ -34,9 +34,41 @@ For deployment-specific guidance (Azure App Service, custom domains), see
 
 ---
 
-## Not yet configured: email
+## Email
 
-The app sends no email today. The `User` schema already reserves the fields an email feature
-will need (password-reset codes, digest preferences, unsubscribe tokens, delivery health), but
-there is no mailer, no SMTP configuration, and no scheduled job. Add the SMTP and
-digest-scheduling variables to the table above when that feature is built.
+The app sends two kinds of email: a **password reset code** (transactional, user-initiated) and a
+**weekly digest** of each user's feed (bulk, opt-out). Design, flows and operational notes are in
+[EMAIL.md](./EMAIL.md). Nothing below is required to run the app: with no SMTP configured every
+message is printed to the server console instead of delivered, which is how the flows are
+exercised locally.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `APP_URL` | Prod | `http://localhost:5173` | Public origin used to build links inside emails (open the app, one-click unsubscribe). |
+| `EMAIL_FROM` | Prod | `Mementos <no-reply@mementos.localhost>` | Sender shown on every message. Use a domain you control with SPF/DKIM configured. |
+| `SMTP_URL` | Prod* | (empty) | Full SMTP connection URL, e.g. `smtps://user:pass@smtp.example.com:465`. |
+| `SMTP_HOST` | Prod* | (empty) | SMTP host, when not using `SMTP_URL`. |
+| `SMTP_PORT` | No | `587` | SMTP port. |
+| `SMTP_SECURE` | No | `false` | `true` for implicit TLS (typically port 465); `false` for STARTTLS (587). |
+| `SMTP_USER` / `SMTP_PASS` | No | (empty) | SMTP credentials, when not using `SMTP_URL`. |
+| `EMAIL_TRANSPORT` | No | auto | Force `smtp`, `console` or `memory`. Auto picks `smtp` when `SMTP_URL`/`SMTP_HOST` is set, `memory` under `NODE_ENV=test`, otherwise `console`. |
+| `PASSWORD_RESET_SECRET` | No | `JWT_SECRET` | HMAC secret for reset codes. Rotating it invalidates every in-flight code. |
+| `PASSWORD_RESET_IP_MAX_REQUESTS` | No | `20` | Per-IP cap on `forgot-password` + `reset-password` calls per 15 minutes. |
+| `DIGEST_ENABLED` | No | `true` | Whether the weekly digest job is scheduled at all. |
+| `DIGEST_CRON` | No | `0 9 * * 1` | When the digest runs (cron expression; default Mondays 09:00). Validated at startup — an invalid value is logged loudly and the job is not scheduled. |
+| `DIGEST_TIMEZONE` | No | `UTC` | IANA timezone the cron expression is evaluated in. |
+| `DIGEST_THROTTLE_MS` | No | `200` | Pause between recipients, so a large user base is mailed over a window rather than in one burst. |
+| `EMAIL_WEBHOOK_SECRET` | No | (empty) | Shared secret for `POST /api/email/events` (bounce/complaint reporting). Empty disables the endpoint. |
+
+\* One of `SMTP_URL` or `SMTP_HOST` is needed for mail to actually be delivered.
+
+### Production notes
+
+- **Set `APP_URL`, `EMAIL_FROM` and SMTP credentials.** Without SMTP the server logs a warning at
+  startup and prints every message to the console.
+- **Run the one-time migration** before (or with) the first deploy of this feature — see
+  [EMAIL.md §Migration](./EMAIL.md#migration). Until it has run, accounts created before the
+  email fields existed have no unsubscribe token and no digest preference.
+- The digest is safe to schedule on **every** instance of a multi-instance deployment: each
+  recipient is claimed with an atomic compare-and-set before being mailed, so no one is mailed
+  twice and no external lock is needed.

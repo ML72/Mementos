@@ -75,3 +75,30 @@ export const getUserFollowing = async (dispatch: any, userId: string) => {
     return null;
   }
 };
+
+// Email preferences. The API returns an explicit whitelist ({ weeklyDigest }) — never the raw
+// settings subtree — so the unsubscribe token can't leak into the client.
+export interface UserSettings {
+  weeklyDigest: boolean;
+}
+
+export const getSettings = async (dispatch: any): Promise<UserSettings | null> => {
+  try {
+    const res = await axios.get('/api/users/settings');
+    return res.data;
+  } catch (err: any) {
+    setApiErrorAlert(dispatch, err, 'Could not fetch email preferences');
+    return null;
+  }
+};
+
+export const updateSettings = async (dispatch: any, data: Partial<UserSettings>): Promise<UserSettings | null> => {
+  try {
+    const res = await axios.put('/api/users/settings', data);
+    setNewAlert(dispatch, { msg: 'Email preferences updated', alertType: 'success' });
+    return res.data;
+  } catch (err: any) {
+    setApiErrorAlert(dispatch, err, 'Could not update email preferences');
+    return null;
+  }
+};

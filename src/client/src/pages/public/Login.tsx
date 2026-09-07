@@ -8,12 +8,13 @@ import {
   Paper,
   Tabs,
   Tab,
-  Stack
+  Stack,
+  Link
 } from '@mui/material';
 import { useDispatch } from 'react-redux';
 import { setNewAlert } from '../../service/alert';
 import { login, register } from '../../service/auth';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import CustomPage from '../../components/layout/CustomPage';
 
 const Login: React.FC = () => {
@@ -161,6 +162,18 @@ const Login: React.FC = () => {
                     '& .MuiOutlinedInput-root': { borderRadius: '8px' }
                   }}
                 />
+                {isLogin && (
+                  <Box sx={{ textAlign: 'right', mt: -1.5 }}>
+                    <Link
+                      component={RouterLink}
+                      to={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`}
+                      underline="hover"
+                      sx={{ fontSize: '0.9rem', color: '#4B5563', fontWeight: 500 }}
+                    >
+                      Forgot password?
+                    </Link>
+                  </Box>
+                )}
                 {!isLogin && (
                   <TextField
                     fullWidth

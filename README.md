@@ -58,6 +58,13 @@ This repository contains the code for Mementos API endpoints and web app fronten
 
 2. You can use [Postman](https://www.postman.com/downloads/) to send requests to the server.
 
+**Email (password reset, weekly digest):**
+
+No mail server is needed locally. Without SMTP settings every email is printed to the server
+console instead of delivered, so you can walk through the forgot-password flow and read the
+code straight from the terminal. See [docs/EMAIL.md](docs/EMAIL.md) for how the feature works,
+how to configure SMTP, and the one-time migration older databases need.
+
 ## Updating Packages
 
 If the dependencies in `package.json` are outdated, run the following to update them:

@@ -11,10 +11,17 @@ const newUnsubscribeToken = (): string => randomBytes(32).toString('base64url');
 
 const UserSchema = new Schema({
     login: {
+        // Email is the identity key for login and for the password-reset flow, so it is
+        // stored normalized: Mongoose applies `lowercase`/`trim` both on write and to query
+        // filters, which makes `Bob@Example.com` and `bob@example.com` the same account.
+        // Accounts stored before this was added need the one-time migration in
+        // scripts/migrate_email_schema.ts, which also refuses to run over case-only collisions.
         email: {
             type: String,
             required: true,
             unique: true,
+            lowercase: true,
+            trim: true,
             maxlength: CONTENT_LIMITS.USER.EMAIL_MAX_LENGTH
         },
         password: {
@@ -35,8 +42,8 @@ const UserSchema = new Schema({
             default: Date.now
         }
     },
-    // Forgot-password state — reserved, nothing reads it yet. Only a hash of the emailed code
-    // is stored, and only until `expiresAt`. Two counters cover two different abuses:
+    // Forgot-password state, driven by AuthService.requestPasswordReset/resetPassword. Only an
+    // HMAC of the emailed code is stored, and only until `expiresAt`. Two counters cover two different abuses:
     // `attempts` caps guesses against a live code (the space is only 10^6), while
     // `sendCount`/`sendWindowStartedAt`/`lastSentAt` cap issuance so the endpoint can't be
     // used to flood an inbox. Null/0 is the resting state, not "unset".
@@ -88,8 +95,9 @@ const UserSchema = new Schema({
     // User-controlled preferences, namespaced by concern so non-email settings (theme,
     // locale) can be added without reshaping what is here.
     settings: {
-        // Reserved, nothing reads it yet. Three groups a bulk send has to satisfy: consent,
-        // deliverability, and what was last sent.
+        // Three groups a bulk send has to satisfy: consent (user-controlled via
+        // /api/users/settings and the unsubscribe link), deliverability (written by
+        // EmailService from bounce/complaint events), and what was last sent (DigestService).
         email: {
             // Explicit `true` rather than an absent field, so the digest query is a plain
             // equality match and not "anything that isn't false".

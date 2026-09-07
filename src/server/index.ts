@@ -3,7 +3,8 @@ import path from 'path';
 import { connectDB, setupCSP, setupCORS, setupWwwRedirect } from './config';
 import { NODE_ENV, PORT, SECURITY_CSP, SECURITY_CORS_WHITELIST, WWW_REDIRECT_HOST } from './settings';
 
-import { authRoutes, usersRoutes, notesRoutes } from './routes';
+import { authRoutes, usersRoutes, notesRoutes, emailRoutes } from './routes';
+import { startDigestScheduler } from './jobs';
 
 // Init app
 const app: Express = express();
@@ -32,6 +33,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/notes', notesRoutes);
+app.use('/api/email', emailRoutes);
 
 // Serve static assets in production
 if (NODE_ENV === 'production') {
@@ -53,6 +55,10 @@ if (NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`Server listening on ${PORT} in ${NODE_ENV} mode`);
   });
+
+  // Weekly digest cron. Safe on multiple instances: each recipient is claimed with an atomic
+  // compare-and-set before being mailed (see DigestService).
+  startDigestScheduler();
 }
 
 export default app;

@@ -34,6 +34,8 @@ npx jest -t "should register a new user"           # single test by name
 npm run lint            # eslint over both packages
 npm run lint:server     # root package only (src/server, src/types, test/, root configs)
 npm run lint:client     # client package only
+
+npm run migrate:email   # one-time backfill of email-feature fields on pre-existing accounts (--dry-run to report)
 ```
 
 The Vite dev server proxies `/api/*` to `http://localhost:3000`, so the client talks to the API with same-origin relative URLs in every environment.
@@ -42,19 +44,22 @@ The Vite dev server proxies `/api/*` to `http://localhost:3000`, so the client t
 
 Strict three-layer separation under `src/server`:
 
-- **routes/** — Express routers, one per resource (`auth`, `users`, `notes`), mounted at `/api/*` in `index.ts`. Routes handle HTTP only: `express-validator` checks, calling a service, and shaping the response. They do **not** touch Mongoose directly.
-- **service/internal/** — business logic in classes (`AuthService`, `UserService`, `NotesService`). Services **never throw to the caller**; they return result objects shaped `{ success: boolean, error?: string, ...data }`. Routes branch on `result.success` and pick the HTTP status. Public surface is re-exported through `service/index.ts`.
+- **routes/** — Express routers, one per resource (`auth`, `users`, `notes`, `email`), mounted at `/api/*` in `index.ts`. Routes handle HTTP only: `express-validator` checks, calling a service, and shaping the response. They do **not** touch Mongoose directly.
+- **service/internal/** — business logic in classes (`AuthService`, `UserService`, `NotesService`, `FeedService`, `EmailService`, `DigestService`). Services **never throw to the caller**; they return result objects shaped `{ success: boolean, error?: string, ...data }`. Routes branch on `result.success` and pick the HTTP status. Public surface is re-exported through `service/index.ts`.
 - **models/** — Mongoose schemas (`User`, `Note`).
+- **mail/** — infrastructure, not business logic: the `Mailer` interface with SMTP/console/memory transports (`getMailer()`; tests inject a `MemoryMailer` via `setMailer`) and the templates. Templates render through the escaping `html` tagged template in `mail/templates.ts` — never build HTML from user content by concatenation.
+- **jobs/** — the `node-cron` digest scheduler, started from `index.ts` (skipped under `NODE_ENV=test`).
+- **scripts/** — operational scripts compiled alongside the server (`dist/scripts/*`), currently the email-schema migration.
 
 When adding an endpoint, follow the chain: validate in the route → call/extend a service method returning a result object → return data or `sendError`. Don't put DB queries in routes or HTTP concerns in services.
 
 ### Conventions that matter
 
 - **Errors:** always use `sendError(res, status, message, extra?)` from `util/http_responses.ts`. It normalizes to `{ errors: [{ msg }], is_token_invalid, ...extra }` — the client parses `errors[].msg`. `message` may be a string or string array (validation errors pass `errors.array().map(e => e.msg)`). There is no `sendSuccess` helper; success responses use `res.json(...)` directly.
-- **Auth:** JWT is sent in the **`x-auth-token` header** (not `Authorization: Bearer`). The `privateAccess` middleware (`middleware/auth.ts`) verifies it and sets `req.user = { id }`. Protected routes list `privateAccess` first. Token-invalid responses set `is_token_invalid: true` so the client can force a logout.
-- **Config:** all env/tunable values live in `settings.ts` (`JWT_SECRET`, `MONGO_URI`, `CONTENT_LIMITS`, `REQUEST_CONSTRAINTS`, etc.) with hardcoded dev defaults. Schemas and validators import limits from here rather than hardcoding numbers — change a limit in one place.
-- **Models:** `User` nests `login` (email/password/verified) and `profile` (fullName/bio), plus `following`/`followers`/`likedNotes` ObjectId arrays. Passwords are bcrypt-hashed in `UserService.createUser`. Mutual follow/unfollow uses a `bulkWrite` to update both users atomically. `User` has a weighted **text index** on `profile.fullName` (weight 5) and `profile.bio` (weight 1); user search uses `$text` with `textScore` sorting, plus a direct `_id` lookup when the query looks like an ObjectId.
-- **Reserved email schema:** `User` carries fields for an email feature that has **not** been built: `login.passwordChangedAt`, the `passwordReset` subtree, and `settings.email.*` (weekly-digest opt-out, unsubscribe token, delivery health, last-sent bookkeeping). Nothing reads or writes them today — they are landed early, with defaults, so every account created from here on has them and the feature never needs a "does this field exist?" check. Accounts predating the schema still need a one-time migration before that holds; there is no backfill script in the repo. `AuthService.getUserById` projects out `passwordReset` and `settings.email.unsubscribeToken` — keep any new raw-user read doing the same.
+- **Auth:** JWT is sent in the **`x-auth-token` header** (not `Authorization: Bearer`). The `privateAccess` middleware (`middleware/auth.ts`) verifies it, then does one `_id` lookup to reject tokens issued before `login.passwordChangedAt` (this is what signs other sessions out after a password reset) and sets `req.user = { id }`. Protected routes list `privateAccess` first. Token-invalid responses set `is_token_invalid: true` so the client can force a logout.
+- **Config:** all env/tunable values live in `settings.ts` (`JWT_SECRET`, `MONGO_URI`, `CONTENT_LIMITS`, `REQUEST_CONSTRAINTS`, `EMAIL`, etc.) with hardcoded dev defaults. Schemas and validators import limits from here rather than hardcoding numbers — change a limit in one place.
+- **Models:** `User` nests `login` (email/password/verified/passwordChangedAt) and `profile` (fullName/bio), plus `following`/`followers`/`likedNotes` ObjectId arrays. `login.email` is stored **lowercased and trimmed** (schema `lowercase`/`trim`, which Mongoose also applies to query filters) and routes normalize it too — email is the identity key for login and password reset, so never compare it case-sensitively. Passwords are bcrypt-hashed in `UserService.createUser`. Mutual follow/unfollow uses a `bulkWrite` to update both users atomically. `User` has a weighted **text index** on `profile.fullName` (weight 5) and `profile.bio` (weight 1); user search uses `$text` with `textScore` sorting, plus a direct `_id` lookup when the query looks like an ObjectId.
+- **Email feature:** see `docs/EMAIL.md`. Password reset (`AuthService.requestPasswordReset/resetPassword`: HMAC-hashed 6-digit codes, per-account cooldown/window/attempt counters written as conditional updates, plus a per-IP limiter), the weekly digest (`DigestService.run`: cursor over opted-in + deliverable users, `FeedService.previewFeed` for a side-effect-free page, atomic claim on `settings.email.lastDigestSentAt` *before* sending), one-click unsubscribe by token, and delivery health (`EmailService.recordDeliveryEvent`). The forgot-password route responds **before** doing the work so timing reveals nothing. `AuthService.getUserById` projects out `login.password`, `passwordReset` and `settings.email.unsubscribeToken` — keep any new raw-user read doing the same, and keep `GET/PUT /api/users/settings` an explicit whitelist. Accounts predating the schema need the one-time `npm run migrate:email`.
 - **ObjectId comparison:** compare ObjectIds with `.equals()` (e.g. `arr.some(id => id.equals(other))`) or `.toString()` — never `Array.includes()` / `===`, which compare by reference and break for re-fetched documents.
 
 ## Frontend architecture
@@ -68,14 +73,14 @@ When adding an endpoint, follow the chain: validate in the route → call/extend
 
 ## Testing
 
-- Integration tests (`test/integration/*.test.ts`) use Jest + ts-jest + Supertest against the real Express `app` and a **separate database** (`mementos_test`). Docker Mongo must be running.
+- Integration tests (`test/integration/*.test.ts`) use Jest + ts-jest + Supertest against the real Express `app` and **separate databases** (`mementos_test*`). Docker Mongo must be running. Email tests inject a `MemoryMailer` and read reset codes back out of captured messages; `forgot-password` answers before it sends, so they poll for the mail rather than assuming it is there on response.
 - `index.ts` skips `connectDB()` and `app.listen()` when `NODE_ENV === 'test'`; each test file connects/disconnects Mongoose itself and clears collections in `beforeEach`.
 - Jest runs with `maxWorkers: 1` and `forceExit: true` — tests share one DB connection and must run serially. Keep that in mind when adding tests.
 - Cypress is configured (`cypress.config.ts`, baseUrl :5173) for e2e but specs may not yet exist.
 
 ## Production / deployment
 
-In production (`NODE_ENV=production`) the Express server additionally serves the built client from `src/client/dist` and falls back to `index.html` for non-`/api` routes — the whole app deploys as one unit (Azure App Service). See `docs/DEPLOYMENT_OVERVIEW.md` and `docs/DEPLOYMENT_SETUP.md`. Required env vars: `NODE_ENV`, `MONGO_URI`, `JWT_SECRET`.
+In production (`NODE_ENV=production`) the Express server additionally serves the built client from `src/client/dist` and falls back to `index.html` for non-`/api` routes — the whole app deploys as one unit (Azure App Service). See `docs/DEPLOYMENT_OVERVIEW.md` and `docs/DEPLOYMENT_SETUP.md`. Required env vars: `NODE_ENV`, `MONGO_URI`, `JWT_SECRET`; for email to actually be delivered also `APP_URL`, `EMAIL_FROM` and `SMTP_URL`/`SMTP_HOST` (see `docs/ENVIRONMENT_OVERVIEW.md`).
 
 ## Gotchas
 

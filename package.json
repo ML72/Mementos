@@ -19,16 +19,20 @@
     "lint": "npm run lint:server && npm run lint:client",
     "lint:server": "eslint .",
     "lint:client": "npm run lint --prefix src/client",
-    "test": "npx jest"
+    "test": "npx jest",
+    "migrate:email": "ts-node src/server/scripts/migrate_email_schema.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
     "express-validator": "^7.3.1",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.1.5",
+    "node-cron": "^4.6.0",
+    "nodemailer": "^10.0.0",
     "path": "^0.12.7",
     "react-router": "^5.3.4",
     "react-router-dom": "^5.3.4"
@@ -41,6 +45,7 @@
     "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.2.0",
+    "@types/nodemailer": "^8.0.1",
     "@types/supertest": "^6.0.3",
     "concurrently": "^9.2.1",
     "cypress": "^15.9.0",

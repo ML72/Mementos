@@ -95,4 +95,71 @@ const FEED: any = {
     RECENTLY_SEEN_CAP: 100
 };
 
-export { NODE_ENV, PORT, MONGO_URI, JWT_SECRET, SECURITY_CSP, SECURITY_CORS_WHITELIST, WWW_REDIRECT_HOST, CONTENT_LIMITS, REQUEST_CONSTRAINTS, FEED };
+// Email. Everything the mailer, the password-reset flow and the weekly digest read lives here.
+// Transport is picked from the environment: SMTP when credentials are configured, otherwise
+// `console` (each message is printed instead of delivered) so the app runs with no mail server.
+// Tests use `memory`, which captures messages for assertions. See docs/EMAIL.md.
+type EmailTransport = 'smtp' | 'console' | 'memory';
+const pickEmailTransport = (): EmailTransport => {
+    const explicit = process.env.EMAIL_TRANSPORT as EmailTransport | undefined;
+    if (explicit === 'smtp' || explicit === 'console' || explicit === 'memory') return explicit;
+    if (NODE_ENV === 'test') return 'memory';
+    return (process.env.SMTP_URL || process.env.SMTP_HOST) ? 'smtp' : 'console';
+};
+const parseBool = (value: string | undefined, fallback: boolean): boolean =>
+    value === undefined || value === '' ? fallback : ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
+
+const EMAIL: any = {
+    TRANSPORT: pickEmailTransport(),
+    // Sender shown on every message. Deliverability depends on this being a domain you control.
+    FROM: process.env.EMAIL_FROM || 'Mementos <no-reply@mementos.localhost>',
+    // Public origin used to build links inside emails (open the app, one-click unsubscribe).
+    // Must be set in production; the dev default is the Vite dev server, which proxies /api.
+    APP_URL: (process.env.APP_URL || 'http://localhost:5173').replace(/\/+$/, ''),
+    SMTP: {
+        // Either a full URL (smtps://user:pass@host:465) or host/port/user/pass.
+        URL: process.env.SMTP_URL || '',
+        HOST: process.env.SMTP_HOST || '',
+        PORT: parseInt(process.env.SMTP_PORT || '587'),
+        SECURE: parseBool(process.env.SMTP_SECURE, false),   // true for implicit TLS (465)
+        USER: process.env.SMTP_USER || '',
+        PASS: process.env.SMTP_PASS || ''
+    },
+    // Secret for HMAC-SHA256 of password-reset codes. A 6-digit code hashed with bcrypt is
+    // offline-crackable from a database dump (10^6 candidates); an HMAC is worthless without
+    // this secret, which lives in config rather than the database. Falls back to JWT_SECRET so
+    // a deployment that set only that still gets a strong value.
+    PASSWORD_RESET_SECRET: process.env.PASSWORD_RESET_SECRET || JWT_SECRET,
+    PASSWORD_RESET: {
+        CODE_LENGTH: 6,
+        EXPIRY_MINUTES: 30,
+        MAX_ATTEMPTS: 5,            // wrong guesses per code
+        RESEND_COOLDOWN_SECONDS: 60,
+        MAX_SENDS_PER_WINDOW: 5,
+        SEND_WINDOW_MINUTES: 60,
+        // Per-IP layer on top of the per-user counters above. Per-user limits stop a flood aimed
+        // at one victim; per-IP limits stop one client spraying many addresses.
+        IP_MAX_REQUESTS: parseInt(process.env.PASSWORD_RESET_IP_MAX_REQUESTS || '20'),
+        IP_WINDOW_MINUTES: 15
+    },
+    DIGEST: {
+        ENABLED: parseBool(process.env.DIGEST_ENABLED, true),
+        // Cron expression + IANA timezone, so DST is the scheduler's problem, not ours.
+        CRON: process.env.DIGEST_CRON || '0 9 * * 1',        // Mondays 09:00
+        TIMEZONE: process.env.DIGEST_TIMEZONE || 'UTC',
+        // A user is due when their last digest is older than this. Slightly under a week, so a
+        // cron that fires a few minutes early does not skip everyone for seven days.
+        PERIOD_HOURS: 144,
+        // Pause between recipients so a large user base is mailed over a window, not in a burst.
+        THROTTLE_MS: parseInt(process.env.DIGEST_THROTTLE_MS || '200'),
+        NOTE_COUNT: 5,              // notes per digest
+        SNIPPET_LENGTH: 200         // characters of note content shown per note
+    },
+    DELIVERY: {
+        SOFT_BOUNCE_SUPPRESS_THRESHOLD: 5   // consecutive soft bounces before an address is suppressed
+    },
+    // Shared secret for the delivery-events webhook (POST /api/email/events). Empty disables it.
+    WEBHOOK_SECRET: process.env.EMAIL_WEBHOOK_SECRET || ''
+};
+
+export { NODE_ENV, PORT, MONGO_URI, JWT_SECRET, SECURITY_CSP, SECURITY_CORS_WHITELIST, WWW_REDIRECT_HOST, CONTENT_LIMITS, REQUEST_CONSTRAINTS, FEED, EMAIL };

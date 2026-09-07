@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { setAuth, clearAuth } from '../store/slices/auth';
-import { setNewAlert } from './alert';
+import { setNewAlert, setApiErrorAlert } from './alert';
 // The axios request/response interceptors live in ./interceptors.ts and are installed in main.tsx.
 
 // Helper function to set axios auth header (legacy, now handled by interceptor but kept for compatibility)
@@ -116,6 +116,35 @@ export const register = async (
       msg: err.response?.data?.errors?.[0]?.msg || 'Registration failed',
       alertType: 'error'
     });
+    return false;
+  }
+};
+
+// Ask for a password reset code to be emailed. The API answers the same way whether or not
+// the address is registered, so the only failure surfaced is a validation/network error.
+export const requestPasswordReset = async (dispatch: any, email: string): Promise<boolean> => {
+  try {
+    const res = await axios.post('/api/auth/forgot-password', { email });
+    setNewAlert(dispatch, { msg: res.data?.msg || 'If an account exists for that email, a reset code has been sent.', alertType: 'success' });
+    return true;
+  } catch (err: any) {
+    setApiErrorAlert(dispatch, err, 'Could not request a reset code. Please try again.');
+    return false;
+  }
+};
+
+// Redeem an emailed reset code. On success every existing session for the account is signed out
+// server-side (including this device's, if any), so the caller should send the user to sign in.
+export const resetPassword = async (
+  dispatch: any,
+  { email, code, password }: { email: string; code: string; password: string }
+): Promise<boolean> => {
+  try {
+    const res = await axios.post('/api/auth/reset-password', { email, code, password });
+    setNewAlert(dispatch, { msg: res.data?.msg || 'Password updated. Please sign in.', alertType: 'success' });
+    return true;
+  } catch (err: any) {
+    setApiErrorAlert(dispatch, err, 'Password reset failed. Please try again.');
     return false;
   }
 };
