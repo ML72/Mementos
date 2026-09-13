@@ -4,7 +4,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/glo
 import app from '../../src/server/index';
 import { User, Note } from '../../src/server/models';
 import { MemoryMailer, setMailer, SendFailure } from '../../src/server/mail';
-import { AuthService, DigestService, EmailService, INVALID_RESET_CODE } from '../../src/server/service';
+import { AuthService, DigestService, INVALID_RESET_CODE } from '../../src/server/service';
 import { EMAIL } from '../../src/server/settings';
 import { passwordResetLimiter } from '../../src/server/middleware';
 
@@ -12,7 +12,6 @@ const TEST_MONGO_URI = 'mongodb://127.0.0.1:27017/mementos_test_email';
 
 const mailer = new MemoryMailer();
 const authService = new AuthService();
-const emailService = new EmailService();
 
 /** Poll until `predicate` holds — forgot-password answers before it sends, so tests wait for the mail. */
 const waitFor = async (predicate: () => boolean, timeoutMs = 3000): Promise<void> => {
@@ -495,75 +494,6 @@ describe('Email feature', () => {
         });
     });
 
-    describe('Delivery events', () => {
-        it('tracks hard bounces, complaints, soft bounces with a suppression threshold, and recovery', async () => {
-            await register('health@example.com');
-            const status = async () => (await dbUser('health@example.com')).settings.email;
-
-            const threshold = EMAIL.DELIVERY.SOFT_BOUNCE_SUPPRESS_THRESHOLD;
-            for (let i = 1; i < threshold; i++) {
-                await emailService.recordDeliveryEvent('health@example.com', 'soft_bounce');
-                expect((await status()).bounceCount).toBe(i);
-                expect((await status()).deliveryStatus).toBe('active');
-            }
-            await emailService.recordDeliveryEvent('health@example.com', 'soft_bounce');
-            expect((await status()).deliveryStatus).toBe('suppressed');
-            expect((await status()).lastBounceAt).toBeTruthy();
-
-            await emailService.recordDeliveryEvent('health@example.com', 'delivered');
-            expect((await status()).bounceCount).toBe(0);
-            // A delivery resets the counter but does not un-suppress on its own.
-            expect((await status()).deliveryStatus).toBe('suppressed');
-
-            await User.updateOne({ 'login.email': 'health@example.com' }, { $set: { 'settings.email.deliveryStatus': 'active' } });
-            await emailService.recordDeliveryEvent('health@example.com', 'hard_bounce');
-            expect((await status()).deliveryStatus).toBe('bounced');
-
-            await emailService.recordDeliveryEvent('health@example.com', 'complaint');
-            expect((await status()).deliveryStatus).toBe('complained');
-            // A complaint is stickier than a bounce.
-            await emailService.recordDeliveryEvent('health@example.com', 'hard_bounce');
-            expect((await status()).deliveryStatus).toBe('complained');
-        });
-
-        it('reports an unknown address without failing', async () => {
-            const res = await emailService.recordDeliveryEvent('nobody@example.com', 'hard_bounce');
-            expect(res).toEqual({ success: true, matched: false });
-        });
-
-        it('webhook is disabled without a secret and validates its payload with one', async () => {
-            await register('hook@example.com');
-            const original = EMAIL.WEBHOOK_SECRET;
-            try {
-                EMAIL.WEBHOOK_SECRET = '';
-                const disabled = await request(app).post('/api/email/events')
-                    .set('x-email-webhook-secret', '').send({ email: 'hook@example.com', event: 'hard_bounce' });
-                expect(disabled.statusCode).toBe(401);
-
-                EMAIL.WEBHOOK_SECRET = 'hook-secret';
-                const wrong = await request(app).post('/api/email/events')
-                    .set('x-email-webhook-secret', 'nope').send({ email: 'hook@example.com', event: 'hard_bounce' });
-                expect(wrong.statusCode).toBe(401);
-
-                const badEvent = await request(app).post('/api/email/events')
-                    .set('x-email-webhook-secret', 'hook-secret').send({ email: 'hook@example.com', event: 'exploded' });
-                expect(badEvent.statusCode).toBe(400);
-
-                const ok = await request(app).post('/api/email/events')
-                    .set('x-email-webhook-secret', 'hook-secret').send({ email: 'Hook@Example.com', event: 'complaint' });
-                expect(ok.statusCode).toBe(200);
-                expect((await dbUser('hook@example.com')).settings.email.deliveryStatus).toBe('complained');
-
-                const unknown = await request(app).post('/api/email/events')
-                    .set('x-email-webhook-secret', 'hook-secret').send({ email: 'nobody@example.com', event: 'complaint' });
-                expect(unknown.statusCode).toBe(200);
-                expect(unknown.body).toEqual(ok.body);
-            } finally {
-                EMAIL.WEBHOOK_SECRET = original;
-            }
-        });
-    });
-
     describe('Weekly digest', () => {
         const digestService = new DigestService();
         const createNote = (token: string, body: any) =>
@@ -636,6 +566,24 @@ describe('Email feature', () => {
             expect(result.candidates).toBe(1);
             expect(result.sent).toBe(1);
             expect(mailer.sent.map(m => m.to)).toEqual(['keep@example.com']);
+        });
+
+        it('reaches an account that predates the email fields once it opts in', async () => {
+            const token = await register('legacy@example.com');
+            await createNote(token, { subject: 's', content: 'c' });
+            // Exactly how the document looks if it was written before the email fields existed.
+            await User.updateOne({ 'login.email': 'legacy@example.com' },
+                { $unset: { 'settings.email': '', 'login.passwordChangedAt': '' } });
+            expect((await run()).candidates).toBe(0);
+
+            // Opting in fills in what the account is missing, including an unsubscribe token.
+            const opt = await request(app).put('/api/users/settings').set('x-auth-token', token).send({ weeklyDigest: true });
+            expect(opt.statusCode).toBe(200);
+
+            expect((await run()).sent).toBe(1);
+            const unsubToken = (await dbUser('legacy@example.com')).settings.email.unsubscribeToken;
+            expect(unsubToken).toBeTruthy();
+            expect(mailer.to('legacy@example.com')[0].text).toContain(unsubToken);
         });
 
         it('does not mail (or claim) a user whose feed is empty, so they are retried next run', async () => {

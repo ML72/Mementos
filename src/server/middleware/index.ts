@@ -1,2 +1,2 @@
-export { privateAccess, issuedBeforePasswordChange } from './auth';
+export { privateAccess } from './auth';
 export { passwordResetLimiter } from './rate_limit';

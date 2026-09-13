@@ -36,11 +36,10 @@ For deployment-specific guidance (Azure App Service, custom domains), see
 
 ## Email
 
-The app sends two kinds of email: a **password reset code** (transactional, user-initiated) and a
-**weekly digest** of each user's feed (bulk, opt-out). Design, flows and operational notes are in
-[EMAIL.md](./EMAIL.md). Nothing below is required to run the app: with no SMTP configured every
-message is printed to the server console instead of delivered, which is how the flows are
-exercised locally.
+The app sends a **password reset code** (transactional) and a **weekly digest** of each user's
+feed (bulk, opt-out). Nothing below is required to run it: with no SMTP configured every message
+is printed to the server console instead of delivered, which is how the flows are exercised
+locally.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -58,7 +57,6 @@ exercised locally.
 | `DIGEST_CRON` | No | `0 9 * * 1` | When the digest runs (cron expression; default Mondays 09:00). Validated at startup — an invalid value is logged loudly and the job is not scheduled. |
 | `DIGEST_TIMEZONE` | No | `UTC` | IANA timezone the cron expression is evaluated in. |
 | `DIGEST_THROTTLE_MS` | No | `200` | Pause between recipients, so a large user base is mailed over a window rather than in one burst. |
-| `EMAIL_WEBHOOK_SECRET` | No | (empty) | Shared secret for `POST /api/email/events` (bounce/complaint reporting). Empty disables the endpoint. |
 
 \* One of `SMTP_URL` or `SMTP_HOST` is needed for mail to actually be delivered.
 
@@ -66,9 +64,17 @@ exercised locally.
 
 - **Set `APP_URL`, `EMAIL_FROM` and SMTP credentials.** Without SMTP the server logs a warning at
   startup and prints every message to the console.
-- **Run the one-time migration** before (or with) the first deploy of this feature — see
-  [EMAIL.md §Migration](./EMAIL.md#migration). Until it has run, accounts created before the
-  email fields existed have no unsubscribe token and no digest preference.
 - The digest is safe to schedule on **every** instance of a multi-instance deployment: each
   recipient is claimed with an atomic compare-and-set before being mailed, so no one is mailed
   twice and no external lock is needed.
+- **Databases that predate this feature:** email is now stored (and looked up) lowercased, so any
+  account whose stored address has uppercase in it can no longer sign in until it is normalized.
+  Check for addresses that would collide, then normalize once:
+
+  ```js
+  db.users.aggregate([{ $group: { _id: { $toLower: '$login.email' }, n: { $sum: 1 } } }, { $match: { n: { $gt: 1 } } }])
+  db.users.updateMany({}, [{ $set: { 'login.email': { $toLower: { $trim: { input: '$login.email' } } } } }])
+  ```
+
+  Nothing else needs backfilling: the email fields landed on `User` with defaults before this
+  feature, and every query here treats a missing one as "not opted in" rather than failing.

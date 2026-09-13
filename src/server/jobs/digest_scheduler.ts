@@ -4,11 +4,8 @@ import { DigestService } from '../service';
 
 /**
  * Start the weekly digest on its cron schedule. Called once from index.ts (never under
- * NODE_ENV=test). The expression and IANA timezone come from config so DST is handled by the
- * scheduler rather than by arithmetic.
- *
- * A malformed expression would otherwise fail silently — the digest would simply never send —
- * so it is validated up front and rejected loudly.
+ * NODE_ENV=test). The expression is validated up front and rejected loudly: a malformed one
+ * otherwise fails silently, and the digest simply never sends.
  */
 export function startDigestScheduler(digestService: DigestService = new DigestService()): ScheduledTask | null {
     const { ENABLED, CRON, TIMEZONE } = EMAIL.DIGEST;

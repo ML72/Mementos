@@ -5,13 +5,11 @@ import { sendError } from '../util';
 
 /**
  * Per-IP limiter for the two public password-reset endpoints. The per-user counters on the
- * account (cooldown, sends per window, attempts per code) stop a flood aimed at one victim;
- * this stops one client spraying many addresses or guessing across many accounts.
+ * account stop a flood aimed at one victim; this stops one client spraying many addresses.
  *
- * The app sets `trust proxy: true` because it runs behind Azure's front door, which sets
- * X-Forwarded-For; express-rate-limit warns that a permissive trust-proxy lets a client spoof
- * its IP. That is a known trade-off here (the platform proxy overwrites the header), so that
- * one validation is switched off rather than the whole check.
+ * `validate.trustProxy` is off because the app sets `trust proxy: true` for Azure's front door,
+ * which express-rate-limit warns about (a permissive trust-proxy lets a client spoof its IP).
+ * The platform proxy overwrites X-Forwarded-For, so only that warning is switched off.
  */
 export const passwordResetLimiter = rateLimit({
     windowMs: EMAIL.PASSWORD_RESET.IP_WINDOW_MINUTES * 60 * 1000,

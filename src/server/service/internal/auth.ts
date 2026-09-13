@@ -19,9 +19,8 @@ export interface GetUserResult {
 }
 
 /**
- * Outcome of a forgot-password request. `success` is always true (there is no failure the
- * caller may reveal); `sent`/`reason` say what actually happened so tests and logs can see it,
- * but must never reach the HTTP response.
+ * `success` is always true — there is no failure the caller may reveal. `sent`/`reason` say what
+ * actually happened, for tests and logs; they must never reach the HTTP response.
  */
 export interface RequestPasswordResetResult {
     success: true;
@@ -40,18 +39,16 @@ export const INVALID_RESET_CODE = 'Invalid or expired reset code';
 /** Trim + lowercase: the schema does the same on write and on query filters. */
 export const normalizeEmail = (email: string): string => String(email ?? '').trim().toLowerCase();
 
-/**
- * Zero-padded numeric code. `crypto.randomInt` is unbiased (no `Math.random`, no `% 10^n`).
- */
+/** Zero-padded numeric code. `crypto.randomInt` is unbiased (no `Math.random`, no `% 10^n`). */
 export const generateResetCode = (): string => {
     const length = EMAIL.PASSWORD_RESET.CODE_LENGTH;
     return randomInt(0, 10 ** length).toString().padStart(length, '0');
 };
 
 /**
- * HMAC-SHA256 rather than bcrypt: a 6-digit code has only 10^6 candidates, so a bcrypt hash in
- * a leaked database is crackable in hours, while an HMAC is worthless without the server-side
- * secret. It is also cheap enough for an unauthenticated endpoint.
+ * HMAC-SHA256 rather than bcrypt: a 6-digit code has only 10^6 candidates, so a bcrypt hash in a
+ * leaked database is crackable in hours, while an HMAC is worthless without the server-side
+ * secret — and it is cheap enough for an unauthenticated endpoint.
  */
 export const hashResetCode = (code: string): string =>
     createHmac('sha256', EMAIL.PASSWORD_RESET_SECRET).update(code).digest('hex');
@@ -113,12 +110,10 @@ class AuthService {
     }
 
     /**
-     * Issue a reset code and email it, subject to per-user rate limits.
-     *
-     * Never fails from the caller's point of view: an unknown address, a cooled-down resend and
-     * an exhausted window all look identical to a successful send, so the endpoint cannot be
-     * used to discover which addresses are registered. The issuance counters are updated with
-     * conditional writes, so two concurrent requests cannot both slip past the window cap.
+     * Issue a reset code and email it, subject to per-user rate limits. Never fails from the
+     * caller's point of view: an unknown address, a cooled-down resend and an exhausted window
+     * all look like a successful send, so the endpoint cannot be used to discover which
+     * addresses are registered.
      */
     async requestPasswordReset(email: string): Promise<RequestPasswordResetResult> {
         const limits = EMAIL.PASSWORD_RESET;
@@ -197,8 +192,8 @@ class AuthService {
                     code
                 }));
             } catch (err: any) {
-                // Transactional mail is attempted regardless of delivery status, but a definite
-                // rejection is still worth recording for the bulk path.
+                // Transactional mail is attempted whatever the delivery status says, but a
+                // definite rejection is still worth recording for the bulk path.
                 if (err instanceof SendFailure) {
                     await this.emailService.recordSendFailure(user.login.email, err.kind);
                 }
@@ -214,9 +209,9 @@ class AuthService {
     }
 
     /**
-     * Redeem a reset code. The attempt is counted *before* the code is compared, in the same
-     * write that fetches it, so concurrent guesses cannot both observe `attempts = 4` and both
-     * proceed. Every failure returns the same message.
+     * Redeem a reset code. The attempt is counted *before* the code is compared, in the same write
+     * that fetches it, so concurrent guesses cannot both observe `attempts = 4` and both proceed.
+     * Every failure returns the same message.
      */
     async resetPassword(email: string, code: string, password: string): Promise<ResetPasswordResult> {
         const limits = EMAIL.PASSWORD_RESET;

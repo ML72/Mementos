@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { sign } from 'jsonwebtoken';
-import { User } from '../../models';
+import { User, newUnsubscribeToken } from '../../models';
 import { JWT_SECRET } from '../../settings';
 
 export interface CreateUserData {
@@ -286,6 +286,14 @@ class UserService {
 
     async updateSettings(userId: string, data: Partial<UserSettings>): Promise<SettingsResult> {
         try {
+            // Opting in is the only way an account that predates the email fields can become a
+            // digest recipient, and every digest needs a working unsubscribe link. The filter
+            // makes this a no-op for everyone else.
+            await User.updateOne(
+                { _id: userId, 'settings.email.unsubscribeToken': { $not: { $type: 'string' } } },
+                { $set: { 'settings.email.unsubscribeToken': newUnsubscribeToken() } }
+            );
+
             const updateFields: any = {};
             if (data.weeklyDigest !== undefined) updateFields['settings.email.weeklyDigest'] = data.weeklyDigest === true;
 

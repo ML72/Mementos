@@ -2,12 +2,10 @@ import { EMAIL } from '../settings';
 import { OutgoingMail } from './mailer';
 
 /**
- * Email and page templates.
- *
- * Everything user-controlled (names, note subjects, note content) ends up inside HTML that
- * leaves the application boundary, so nothing here is built by string concatenation: the
- * `html` tag escapes every interpolated value, and only fragments explicitly marked with
- * `raw()` (which themselves came out of `html`) are inserted verbatim.
+ * Email and page templates. Everything user-controlled (names, note subjects, note content) ends
+ * up inside HTML that leaves the application boundary, so nothing here is built by string
+ * concatenation: the `html` tag escapes every interpolated value, and only fragments explicitly
+ * marked `raw()` are inserted verbatim.
  */
 
 const ESCAPES: Record<string, string> = {
@@ -183,11 +181,9 @@ export function renderDigestEmail({ to, fullName, notes, unsubscribeToken }: Dig
 // Unsubscribe pages (served by the API, since the reader arrives from a mail client)
 // ---------------------------------------------------------------------------
 
-const page = (title: string, body: SafeHtml): string => layout(title, body);
-
 /** GET landing page: a form that POSTs, so link prefetchers cannot unsubscribe anyone. */
 export function renderUnsubscribeConfirmPage(token: string): string {
-    return page('Unsubscribe from weekly digests', html`
+    return layout('Unsubscribe from weekly digests', html`
       <h1 style="font-size:22px;margin:0 0 16px;">Unsubscribe from weekly digests?</h1>
       <p style="margin:0 0 24px;line-height:1.5;color:#4b5563;">You will stop receiving the weekly Mementos digest. You can turn it back on any time from Settings in the app.</p>
       <form method="post" action="${unsubscribeUrl(token)}">
@@ -197,14 +193,14 @@ export function renderUnsubscribeConfirmPage(token: string): string {
 
 /** POST result page: identical whether or not the token matched a user (no token oracle). */
 export function renderUnsubscribedPage(): string {
-    return page('Unsubscribed', html`
+    return layout('Unsubscribed', html`
       <h1 style="font-size:22px;margin:0 0 16px;">You're unsubscribed</h1>
       <p style="margin:0;line-height:1.5;color:#4b5563;">You will no longer receive the weekly Mementos digest. Changed your mind? Turn it back on from Settings in the app.</p>`);
 }
 
 /** Shown when the link is missing its token entirely (not a lookup failure). */
 export function renderUnsubscribeInvalidPage(): string {
-    return page('Invalid unsubscribe link', html`
+    return layout('Invalid unsubscribe link', html`
       <h1 style="font-size:22px;margin:0 0 16px;">That link is incomplete</h1>
       <p style="margin:0;line-height:1.5;color:#4b5563;">This unsubscribe link is missing its token. Please use the link from a digest email, or manage email preferences from Settings in the app.</p>`);
 }

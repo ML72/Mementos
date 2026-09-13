@@ -1,10 +1,7 @@
 import nodemailer, { Transporter } from 'nodemailer';
 import { EMAIL, NODE_ENV } from '../settings';
 
-/**
- * One outgoing message. Templates produce these; a Mailer delivers them. Headers are where
- * the digest puts its List-Unsubscribe pair.
- */
+/** One outgoing message: templates produce these, a Mailer delivers them. */
 export interface OutgoingMail {
     to: string;
     subject: string;
@@ -35,11 +32,11 @@ export interface Mailer {
 }
 
 /**
- * Map a nodemailer/SMTP error onto a SendFailureKind. nodemailer surfaces the SMTP reply code
- * as `responseCode` and the failing phase as `code` (`EENVELOPE` = recipient rejected at
- * RCPT TO, `EMESSAGE` = rejected after DATA, `ECONNECTION`/`EAUTH` = never got that far).
- * Anything that is not clearly about the recipient is treated as transient, because writing
- * `bounced` onto a user for what was really our outage would silently stop their mail.
+ * Map a nodemailer/SMTP error onto a SendFailureKind. nodemailer surfaces the SMTP reply code as
+ * `responseCode` and the failing phase as `code` (`EENVELOPE` = rejected at RCPT TO, `EMESSAGE` =
+ * rejected after DATA, `ECONNECTION`/`EAUTH` = never got that far). Anything not clearly about
+ * the recipient is transient: writing `bounced` for what was really our outage would silently
+ * stop that user's mail.
  */
 export function classifySmtpError(err: any): SendFailureKind {
     const code: number | undefined = typeof err?.responseCode === 'number' ? err.responseCode : undefined;
@@ -89,8 +86,8 @@ export class SmtpMailer implements Mailer {
 }
 
 /**
- * Development transport: prints the message instead of delivering it, so the whole flow
- * (reset codes included) can be exercised with no mail server. Never used when SMTP is set.
+ * Development transport: prints the message instead of delivering it, so the whole flow (reset
+ * codes included) can be exercised with no mail server. Never used when SMTP is configured.
  */
 export class ConsoleMailer implements Mailer {
     readonly name = 'console';
@@ -106,8 +103,8 @@ export class ConsoleMailer implements Mailer {
 }
 
 /**
- * Test transport: keeps every message in memory so tests can read the reset code out of it,
- * and can be told to fail so delivery-health handling is testable without a mail server.
+ * Test transport: keeps every message in memory so tests can read the reset code back out, and
+ * can be told to fail so delivery handling is testable without a mail server.
  */
 export class MemoryMailer implements Mailer {
     readonly name = 'memory';

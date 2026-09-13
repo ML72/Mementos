@@ -19,8 +19,7 @@
     "lint": "npm run lint:server && npm run lint:client",
     "lint:server": "eslint .",
     "lint:client": "npm run lint --prefix src/client",
-    "test": "npx jest",
-    "migrate:email": "ts-node src/server/scripts/migrate_email_schema.ts"
+    "test": "npx jest"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

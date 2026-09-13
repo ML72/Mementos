@@ -12,12 +12,10 @@ interface JWTPayload {
 }
 
 /**
- * True when the token was issued before the account's password was last changed.
- *
- * JWTs are stateless, so this comparison is the only thing that signs other sessions out
- * after a password reset. `iat` has one-second resolution while `passwordChangedAt` has
- * milliseconds, so a token minted in the same second as the change would look older than it
- * without the one-second grace.
+ * True when the token was issued before the account's password was last changed — the only
+ * thing that signs other sessions out after a reset, since JWTs are stateless. `iat` has
+ * one-second resolution and `passwordChangedAt` milliseconds, hence the one-second grace:
+ * without it a token minted in the same second as the change looks older than it.
  */
 export const issuedBeforePasswordChange = (iatSeconds: number, passwordChangedAt: Date): boolean =>
     iatSeconds * 1000 + 1000 < passwordChangedAt.getTime();
@@ -41,18 +39,17 @@ const privateAccess = async (req: Request, res: Response, next: NextFunction): P
         return;
     }
 
-    // Reject tokens that predate a password change (or belong to a deleted account). This is
-    // one `_id` point lookup with a two-field projection per authenticated request — the
-    // cheapest query there is — and the alternative leaves a stolen token working everywhere
-    // that isn't specially guarded.
+    // Reject tokens that predate a password change (or belong to a deleted account). One `_id`
+    // point lookup per authenticated request — the cheapest query there is — and the
+    // alternative leaves a stolen token working everywhere that isn't specially guarded.
     try {
         const user = await User.findById(decoded.user.id).select('login.passwordChangedAt dateCreated').lean();
         if (!user) {
             sendError(res, 401, 'Token is not valid', { is_token_invalid: true });
             return;
         }
-        // Accounts written before the field existed are treated as "changed at creation",
-        // which is exactly what the migration writes for them.
+        // Accounts written before the field existed fall back to their creation date, which is
+        // what the schema default would have given them.
         const changedAt: Date | undefined = (user as any).login?.passwordChangedAt ?? (user as any).dateCreated;
         if (changedAt && typeof decoded.iat === 'number' && issuedBeforePasswordChange(decoded.iat, new Date(changedAt))) {
             sendError(res, 401, 'Token is not valid', { is_token_invalid: true });
