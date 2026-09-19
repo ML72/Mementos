@@ -4,6 +4,7 @@ import { connectDB, setupCSP, setupCORS, setupWwwRedirect } from './config';
 import { NODE_ENV, PORT, SECURITY_CSP, SECURITY_CORS_WHITELIST, WWW_REDIRECT_HOST } from './settings';
 
 import { authRoutes, usersRoutes, notesRoutes } from './routes';
+import { getMailer, SmtpMailer } from './mail';
 
 // Init app
 const app: Express = express();
@@ -53,6 +54,12 @@ if (NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`Server listening on ${PORT} in ${NODE_ENV} mode`);
   });
+
+  // Surface a bad SMTP host or credential at boot rather than on the first sign-up.
+  const mailer = getMailer();
+  if (mailer instanceof SmtpMailer) {
+    mailer.verify().then(ok => { if (ok) console.log('EMAIL: SMTP connection verified'); });
+  }
 }
 
 export default app;

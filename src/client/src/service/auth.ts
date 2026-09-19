@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { setAuth, clearAuth } from '../store/slices/auth';
-import { setNewAlert } from './alert';
+import { setNewAlert, setApiErrorAlert } from './alert';
 // The axios request/response interceptors live in ./interceptors.ts and are installed in main.tsx.
 
 // Helper function to set axios auth header (legacy, now handled by interceptor but kept for compatibility)
@@ -13,48 +13,47 @@ const removeAuthHeader = () => {
   delete axios.defaults.headers.common['x-auth-token'];
 };
 
+// What a sign-in attempt can lead to: a session, nothing, or the code-entry page.
+export type SignInOutcome = 'signed-in' | 'needs-verification' | 'failed';
+
+// Shared tail of login, registration and verification: load the profile for a fresh token and
+// put the session in the store (redux-persist handles persistence).
+const completeSignIn = async (dispatch: any, token: string) => {
+  const userRes = await axios.get('/api/auth', {
+    headers: { 'x-auth-token': token }
+  });
+  const { _id, login, roles, profile } = userRes.data;
+
+  setAuthHeader(token);
+  dispatch(
+    setAuth({
+      token,
+      userId: _id,
+      email: login?.email,
+      fullName: profile?.fullName,
+      accountRoles: roles || ['USER']
+    })
+  );
+};
+
 // Login handler
 export const login = async (
   dispatch: any,
   { email, password }: { email: string; password: string }
-) => {
+): Promise<SignInOutcome> => {
   try {
-    // Login request
     const res = await axios.post('/api/auth', { email, password });
-    const { token } = res.data;
-
-    // Fetch user info using the token
-    const userRes = await axios.get('/api/auth', {
-      headers: { 'x-auth-token': token }
-    });
-
-    const { _id, login, roles, profile } = userRes.data;
-    const fullName = profile?.fullName;
-
-    // Set axios default header for future requests
-    setAuthHeader(token);
-
-    // Dispatch to Redux store (redux-persist will handle persistence)
-    dispatch(
-      setAuth({
-        token,
-        userId: _id,
-        email: login?.email,
-        fullName,
-        accountRoles: roles || ['USER']
-      })
-    );
-    
-  setNewAlert(dispatch, { msg: 'Login successful.', alertType: 'success' });
-    return true;
+    await completeSignIn(dispatch, res.data.token);
+    setNewAlert(dispatch, { msg: 'Login successful.', alertType: 'success' });
+    return 'signed-in';
   } catch (err: any) {
-    setNewAlert(dispatch, {
-      msg:
-        err?.response?.data?.errors?.[0]?.msg ||
-  'Login failed. Please try again.',
-      alertType: 'error'
-    });
-    return false;
+    // Right password, unverified address: the API has (re)sent a code.
+    if (err?.response?.data?.email_unverified) {
+      setNewAlert(dispatch, { msg: 'Please verify your email. We sent you a code.', alertType: 'info' });
+      return 'needs-verification';
+    }
+    setApiErrorAlert(dispatch, err, 'Login failed. Please try again.');
+    return 'failed';
   }
 };
 
@@ -84,38 +83,48 @@ export const register = async (
     password: string;
     fullName: string;
   }
-) => {
+): Promise<SignInOutcome> => {
   try {
     const res = await axios.post('/api/users', { email, password, fullName });
-    const { token } = res.data;
+    if (res.data.verificationRequired) {
+      setNewAlert(dispatch, { msg: 'Account created. We emailed you a verification code.', alertType: 'success' });
+      return 'needs-verification';
+    }
 
-    // Login immediately after registration
-    const userRes = await axios.get('/api/auth', {
-      headers: { 'x-auth-token': token }
-    });
-
-    const { _id, login, roles, profile: returnedProfile } = userRes.data;
-    const returnedFullName = returnedProfile?.fullName;
-
-    setAuthHeader(token);
-
-    dispatch(
-      setAuth({
-        token,
-        userId: _id,
-        email: login?.email,
-        fullName: returnedFullName,
-        accountRoles: roles || ['USER']
-      })
-    );
-
+    // Verification is switched off on this server: registration signs in directly.
+    await completeSignIn(dispatch, res.data.token);
     setNewAlert(dispatch, { msg: 'Registration successful.', alertType: 'success' });
+    return 'signed-in';
+  } catch (err: any) {
+    setApiErrorAlert(dispatch, err, 'Registration failed');
+    return 'failed';
+  }
+};
+
+// Redeem the emailed verification code; success verifies the account and signs in.
+export const verifyEmail = async (
+  dispatch: any,
+  { email, code }: { email: string; code: string }
+): Promise<boolean> => {
+  try {
+    const res = await axios.post('/api/auth/verify-email', { email, code });
+    await completeSignIn(dispatch, res.data.token);
+    setNewAlert(dispatch, { msg: 'Email verified. Welcome!', alertType: 'success' });
     return true;
   } catch (err: any) {
-    setNewAlert(dispatch, {
-      msg: err.response?.data?.errors?.[0]?.msg || 'Registration failed',
-      alertType: 'error'
-    });
+    setApiErrorAlert(dispatch, err, 'Verification failed. Please try again.');
+    return false;
+  }
+};
+
+// Ask for a fresh verification code. The API answers the same way whatever the address is.
+export const resendVerification = async (dispatch: any, email: string): Promise<boolean> => {
+  try {
+    const res = await axios.post('/api/auth/resend-verification', { email });
+    setNewAlert(dispatch, { msg: res.data?.msg || 'A new code has been sent.', alertType: 'success' });
+    return true;
+  } catch (err: any) {
+    setApiErrorAlert(dispatch, err, 'Could not send a new code. Please try again.');
     return false;
   }
 };

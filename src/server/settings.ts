@@ -95,4 +95,54 @@ const FEED: any = {
     RECENTLY_SEEN_CAP: 100
 };
 
-export { NODE_ENV, PORT, MONGO_URI, JWT_SECRET, SECURITY_CSP, SECURITY_CORS_WHITELIST, WWW_REDIRECT_HOST, CONTENT_LIMITS, REQUEST_CONSTRAINTS, FEED };
+// Email. The transport is picked from the environment: SMTP when credentials are configured,
+// otherwise `console` (each message is printed instead of delivered) so the app runs with no
+// mail server. Tests use `memory`, which captures messages for assertions.
+type EmailTransport = 'smtp' | 'console' | 'memory';
+const pickEmailTransport = (): EmailTransport => {
+    const explicit = process.env.EMAIL_TRANSPORT as EmailTransport | undefined;
+    if (explicit === 'smtp' || explicit === 'console' || explicit === 'memory') return explicit;
+    if (NODE_ENV === 'test') return 'memory';
+    return (process.env.SMTP_URL || process.env.SMTP_HOST) ? 'smtp' : 'console';
+};
+const parseBool = (value: string | undefined, fallback: boolean): boolean =>
+    value === undefined || value === '' ? fallback : ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
+
+const EMAIL: any = {
+    TRANSPORT: pickEmailTransport(),
+    FROM: process.env.EMAIL_FROM || 'Mementos <no-reply@mementos.localhost>',
+    // Origin used to build links inside emails. Must be set in production; the dev default is
+    // the Vite dev server, which proxies /api.
+    APP_URL: (process.env.APP_URL || 'http://localhost:5173').replace(/\/+$/, ''),
+    SMTP: {
+        // Either a full URL (smtps://user:pass@host:465) or host/port/user/pass.
+        URL: process.env.SMTP_URL || '',
+        HOST: process.env.SMTP_HOST || '',
+        PORT: parseInt(process.env.SMTP_PORT || '587'),
+        SECURE: parseBool(process.env.SMTP_SECURE, false),   // true for implicit TLS (465)
+        USER: process.env.SMTP_USER || '',
+        PASS: process.env.SMTP_PASS || ''
+    },
+    // HMAC secret for emailed one-time codes. A 6-digit code hashed with bcrypt is
+    // offline-crackable from a database dump (10^6 candidates); an HMAC is worthless without
+    // this secret, which lives in config rather than the database. Falls back to JWT_SECRET.
+    CODE_SECRET: process.env.EMAIL_CODE_SECRET || JWT_SECRET,
+    // Per-IP cap across the public code endpoints. The per-account counters below stop a flood
+    // aimed at one victim; this stops one client spraying many addresses.
+    CODE_IP_LIMIT: {
+        MAX_REQUESTS: parseInt(process.env.EMAIL_CODE_IP_MAX_REQUESTS || '20'),
+        WINDOW_MINUTES: 15
+    },
+    VERIFICATION: {
+        // When false, accounts can sign in without verifying (escape hatch if mail is down).
+        REQUIRED: parseBool(process.env.EMAIL_VERIFICATION_REQUIRED, true),
+        CODE_LENGTH: 6,
+        EXPIRY_MINUTES: 30,
+        MAX_ATTEMPTS: 5,            // wrong guesses per code
+        RESEND_COOLDOWN_SECONDS: 60,
+        MAX_SENDS_PER_WINDOW: 5,
+        SEND_WINDOW_MINUTES: 60
+    }
+};
+
+export { NODE_ENV, PORT, MONGO_URI, JWT_SECRET, SECURITY_CSP, SECURITY_CORS_WHITELIST, WWW_REDIRECT_HOST, CONTENT_LIMITS, REQUEST_CONSTRAINTS, FEED, EMAIL };

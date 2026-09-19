@@ -34,9 +34,59 @@ For deployment-specific guidance (Azure App Service, custom domains), see
 
 ---
 
-## Not yet configured: email
+## Email
 
-The app sends no email today. The `User` schema already reserves the fields an email feature
-will need (password-reset codes, digest preferences, unsubscribe tokens, delivery health), but
-there is no mailer, no SMTP configuration, and no scheduled job. Add the SMTP and
-digest-scheduling variables to the table above when that feature is built.
+The app emails a **verification code** when an account is created; the account cannot sign in
+until the code is entered. Nothing below is required to run it locally: with no SMTP configured
+every message is printed to the server console instead of delivered, so the code can be read
+from the terminal.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `APP_URL` | Prod | `http://localhost:5173` | Public origin used to build links inside emails. |
+| `EMAIL_FROM` | Prod | `Mementos <no-reply@mementos.localhost>` | Sender shown on every message. Must be on a domain verified with the mail provider. |
+| `SMTP_URL` | Prod* | (empty) | Full SMTP connection URL, e.g. `smtps://user:pass@smtp.example.com:465`. |
+| `SMTP_HOST` | Prod* | (empty) | SMTP host, when not using `SMTP_URL`. |
+| `SMTP_PORT` | No | `587` | SMTP port. |
+| `SMTP_SECURE` | No | `false` | `true` for implicit TLS (typically port 465); `false` for STARTTLS (587). |
+| `SMTP_USER` / `SMTP_PASS` | No | (empty) | SMTP credentials, when not using `SMTP_URL`. |
+| `EMAIL_TRANSPORT` | No | auto | Force `smtp`, `console` or `memory`. Auto picks `smtp` when `SMTP_URL`/`SMTP_HOST` is set, `memory` under `NODE_ENV=test`, otherwise `console`. |
+| `EMAIL_VERIFICATION_REQUIRED` | No | `true` | `false` lets accounts sign in without verifying — an escape hatch if mail delivery is down. |
+| `EMAIL_CODE_SECRET` | No | `JWT_SECRET` | HMAC secret for emailed codes. Rotating it invalidates every in-flight code. |
+| `EMAIL_CODE_IP_MAX_REQUESTS` | No | `20` | Per-IP cap on the public code endpoints (`verify-email`, `resend-verification`) per 15 minutes. |
+
+\* One of `SMTP_URL` or `SMTP_HOST` is needed for mail to actually be delivered.
+
+### Resend
+
+Mail goes through [Resend](https://resend.com) over SMTP. Verify the sending domain in the Resend
+dashboard (it lists the SPF/DKIM records to add), create an API key, then:
+
+```
+SMTP_HOST=smtp.resend.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=resend
+SMTP_PASS=<Resend API key>
+EMAIL_FROM="Mementos <no-reply@your-verified-domain>"
+```
+
+The server checks the SMTP connection at startup and logs `EMAIL: SMTP connection verified`, or
+the reason it failed. Until a domain is verified, Resend only delivers from
+`onboarding@resend.dev` to the account owner's own address — enough to try the flow, not to ship.
+
+### Production notes
+
+- **Set `APP_URL`, `EMAIL_FROM` and the SMTP variables.** Without SMTP the server logs a warning
+  at startup and prints every message to the console.
+- **Existing accounts** were all created with `login.verified: false`, so each is asked to verify
+  the next time it signs in (sessions already open are untouched). To exempt them instead:
+  `db.users.updateMany({}, { $set: { 'login.verified': true } })` before deploying.
+- **Email is now stored and looked up lowercased.** An account whose stored address has uppercase
+  in it cannot sign in until it is normalized. Check for addresses that would collide, then
+  normalize once:
+
+  ```js
+  db.users.aggregate([{ $group: { _id: { $toLower: '$login.email' }, n: { $sum: 1 } } }, { $match: { n: { $gt: 1 } } }])
+  db.users.updateMany({}, [{ $set: { 'login.email': { $toLower: { $trim: { input: '$login.email' } } } } }])
+  ```

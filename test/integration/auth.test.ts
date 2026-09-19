@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import app from '../../src/server/index';
 import { User } from '../../src/server/models';
+import { registerVerified } from '../helpers/auth';
 
 const TEST_MONGO_URI = 'mongodb://127.0.0.1:27017/mementos_test';
 
@@ -28,7 +29,7 @@ describe('Auth Endpoints Integration Services', () => {
     });
 
     describe('POST /api/users (Registration)', () => {
-        it('should register a new user', async () => {
+        it('should register a new user, unverified and without a session', async () => {
             const res = await request(app)
                 .post('/api/users')
                 .send({
@@ -37,32 +38,26 @@ describe('Auth Endpoints Integration Services', () => {
                 });
             
             expect(res.statusCode).toEqual(200);
-            expect(res.body).toHaveProperty('token');
+            expect(res.body).toEqual({ verificationRequired: true });
 
             // Verify user in DB has nested login fields
             const user = await User.findOne({ 'login.email': 'test@example.com' });
             expect(user).toBeTruthy();
             expect(user?.login?.email).toBe('test@example.com');
             expect(user?.login?.password).toBeTruthy();
+            expect(user?.login?.verified).toBe(false);
         });
     });
 
     describe('POST /api/auth (Login)', () => {
         it('should login an existing user', async () => {
-            // First register
-            await request(app)
-                .post('/api/users')
-                .send({
-                    email: 'test@example.com',
-                    password: 'password123', fullName: 'Test Name'
-                });
+            await registerVerified('test@example.com', 'password123', 'Test Name');
 
-            // Then login
             const res = await request(app)
                 .post('/api/auth')
                 .send({
                     email: 'test@example.com',
-                    password: 'password123', fullName: 'Test Name'
+                    password: 'password123'
                 });
 
             expect(res.statusCode).toEqual(200);
@@ -70,13 +65,7 @@ describe('Auth Endpoints Integration Services', () => {
         });
 
         it('should reject invalid credentials', async () => {
-             // First register
-             await request(app)
-                .post('/api/users')
-                .send({
-                    email: 'test@example.com',
-                    password: 'password123', fullName: 'Test Name'
-                });
+             await registerVerified('test@example.com', 'password123', 'Test Name');
 
              const res = await request(app)
                 .post('/api/auth')
@@ -91,15 +80,7 @@ describe('Auth Endpoints Integration Services', () => {
 
     describe('GET /api/auth (Get Current User)', () => {
          it('should return user data for valid token', async () => {
-            // Register to get token
-            const regRes = await request(app)
-                .post('/api/users')
-                .send({
-                    email: 'test@example.com',
-                    password: 'password123', fullName: 'Test Name'
-                });
-            
-            const token = regRes.body.token;
+            const token = await registerVerified('test@example.com', 'password123', 'Test Name');
 
             const res = await request(app)
                 .get('/api/auth')
@@ -107,8 +88,9 @@ describe('Auth Endpoints Integration Services', () => {
             
             expect(res.statusCode).toEqual(200);
             expect(res.body.login.email).toEqual('test@example.com');
-            // Ensure password is not returned
+            // Ensure credential material is not returned
             expect(res.body.login.password).toBeUndefined();
+            expect(res.body.emailVerification).toBeUndefined();
          });
     });
 });

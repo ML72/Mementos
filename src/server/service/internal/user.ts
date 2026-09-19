@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
-import { sign } from 'jsonwebtoken';
 import { User } from '../../models';
-import { JWT_SECRET } from '../../settings';
+import { EMAIL } from '../../settings';
+import AuthService, { signToken } from './auth';
 
 export interface CreateUserData {
     email: string;
@@ -11,7 +11,9 @@ export interface CreateUserData {
 
 export interface CreateUserResult {
     success: boolean;
+    /** Present only when verification is not required; otherwise the token comes from verifying. */
     token?: string;
+    verificationRequired?: boolean;
     error?: string;
 }
 
@@ -21,11 +23,13 @@ export interface ToggleFollowResult {
 }
 
 class UserService {
+    private readonly authService = new AuthService();
+
     async createUser(userData: CreateUserData): Promise<CreateUserResult> {
         try {
             const { email, password, fullName } = userData;
 
-            let user = await User.findOne({ 'login.email': email });
+            let user = await User.findOne({ 'login.email': email.trim().toLowerCase() });
             if (user) {
                 return { success: false, error: 'User already exists' };
             }
@@ -45,10 +49,14 @@ class UserService {
 
             await user.save();
 
-            const payload = { user: { id: user.id } };
-            const token = sign(payload, JWT_SECRET, { expiresIn: 259200 });
+            if (EMAIL.VERIFICATION.REQUIRED) {
+                // No session until the address is proven. A failed send is not fatal: signing in
+                // with the right password sends another code.
+                await this.authService.sendVerificationCode(email);
+                return { success: true, verificationRequired: true };
+            }
 
-            return { success: true, token };
+            return { success: true, token: signToken(user.id) };
         } catch (error: any) {
             console.error('Registration error:', error.message);
             return { success: false, error: 'Server error' };

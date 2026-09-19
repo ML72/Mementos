@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { useDispatch } from 'react-redux';
 import { setNewAlert } from '../../service/alert';
-import { login, register } from '../../service/auth';
+import { login, register, SignInOutcome } from '../../service/auth';
 import { useNavigate, useLocation } from 'react-router-dom';
 import CustomPage from '../../components/layout/CustomPage';
 
@@ -39,6 +39,11 @@ const Login: React.FC = () => {
 
   const isLogin = tabVal === 0;
 
+  const goTo = (outcome: SignInOutcome) => {
+    if (outcome === 'signed-in') navigate('/home');
+    if (outcome === 'needs-verification') navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
@@ -60,11 +65,9 @@ const Login: React.FC = () => {
         setNewAlert(dispatch, { msg: "Passwords do not match", alertType: 'error' });
         return;
       }
-      const success = await register(dispatch, { email, password, fullName });
-      if (success) navigate('/home');
+      goTo(await register(dispatch, { email, password, fullName }));
     } else {
-      const success = await login(dispatch, { email, password });
-      if (success) navigate('/home');
+      goTo(await login(dispatch, { email, password }));
     }
   };
 
