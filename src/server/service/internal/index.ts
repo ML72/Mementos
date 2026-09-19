@@ -3,8 +3,15 @@ export { default as UserService } from './user';
 export { default as NotesService } from './notes';
 export { default as FeedService } from './feed';
 export { default as CodeService } from './codes';
-export type { AuthenticateUserResult, GetUserResult, SendVerificationResult, VerifyEmailResult } from './auth';
-export { INVALID_VERIFICATION_CODE, EMAIL_UNVERIFIED } from './auth';
-export type { CreateUserData, CreateUserResult } from './user';
+export { default as EmailService } from './email';
+export { default as DigestService } from './digest';
+export type {
+    AuthenticateUserResult, GetUserResult, SendVerificationResult, VerifyEmailResult,
+    RequestPasswordResetResult, ResetPasswordResult
+} from './auth';
+export { INVALID_VERIFICATION_CODE, INVALID_RESET_CODE, EMAIL_UNVERIFIED } from './auth';
+export type { CreateUserData, CreateUserResult, UserSettings, SettingsResult, UnsubscribeResult } from './user';
 export type { CreateNoteData, UpdateNoteData, NoteResult } from './notes';
 export type { FeedResult } from './feed';
+export type { DeliveryEventResult } from './email';
+export type { DigestRunOptions, DigestRunResult } from './digest';

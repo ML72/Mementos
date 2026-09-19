@@ -200,49 +200,84 @@ class FeedService {
             }
 
             const nowMs = Date.now();
-            const tagAffinity: Map<string, number> = (user.feed?.tagAffinity as any) ?? new Map();
-            const authorAffinity: Map<string, number> = (user.feed?.authorAffinity as any) ?? new Map();
-            const recentlySeen: any[] = (user.feed?.recentlySeen as any[]) ?? [];
-            const followingIds: any[] = user.following ?? [];
-            const followingSet = new Set(followingIds.map(id => id.toString()));
-
-            // recentlySeen is ordered most-recent-first; map id -> ring age (0 = most recent).
-            const seenIndex = new Map<string, number>();
-            recentlySeen.forEach((id, i) => seenIndex.set(id.toString(), i));
-
-            // --- Stage 1: candidate generation (bounded + index-backed) ---
-            const selfPool = await Note.find({ creator: userId })
-                .sort({ 'review.nextDueAt': 1 })
-                .limit(FEED.CANDIDATE_POOL);
-
-            const otherPool = followingIds.length
-                ? await Note.find({ creator: { $in: followingIds } })
-                    .sort({ dateCreated: -1 })
-                    .limit(FEED.CANDIDATE_POOL)
-                : [];
-
-            // --- Stage 2: ranking (prefer unseen; reuse least-recently-seen as fallback) ---
-            const selfRanked = this.rankTrack(selfPool, note => scoreSelf(note, nowMs), seenIndex);
-            const otherRanked = this.rankTrack(
-                otherPool,
-                note => scoreOther(note, nowMs, tagAffinity, authorAffinity, followingSet),
-                seenIndex
-            );
-
-            // --- Stage 3: blend under the self-review floor ---
-            const enforceSelfFloor = selfPool.length >= FEED.MIN_NOTES_FOR_SELF_QUOTA;
-            const page = blend(selfRanked, otherRanked, limit, enforceSelfFloor);
+            const { page, hasMore, recentlySeen } = await this.computePage(user, limit, nowMs);
 
             // Record impressions, then populate creators for just the served page.
             await this.recordServed(userId, page, recentlySeen, nowMs);
             await Note.populate(page, { path: 'creator', select: 'login.email profile.fullName' });
 
-            const hasMore = (selfRanked.length + otherRanked.length) > page.length;
             return { success: true, notes: page, hasMore };
         } catch (error: any) {
             console.error('Get feed error:', error.message);
             return { success: false, error: 'Server error' };
         }
+    }
+
+    /**
+     * The same page `getFeed` would serve, without recording it: no impressions on the
+     * recently-seen ring, no spaced-repetition advance. This is what the weekly digest uses —
+     * an email must not mark notes as "seen" that the user never opened. Both paths rank
+     * through `computePage`, so they agree by construction rather than by two copies of the
+     * ranking code staying in sync.
+     */
+    async previewFeed(userId: string, limit: number): Promise<FeedResult> {
+        try {
+            const user = await User.findById(userId).select('following feed');
+            if (!user) {
+                return { success: false, error: 'User not found' };
+            }
+
+            const { page, hasMore } = await this.computePage(user, limit, Date.now());
+            await Note.populate(page, { path: 'creator', select: 'login.email profile.fullName' });
+
+            return { success: true, notes: page, hasMore };
+        } catch (error: any) {
+            console.error('Preview feed error:', error.message);
+            return { success: false, error: 'Server error' };
+        }
+    }
+
+    /**
+     * Side-effect-free core shared by getFeed and previewFeed: candidate generation, ranking
+     * and blend for one user. Reads only; never writes.
+     */
+    private async computePage(user: any, limit: number, nowMs: number): Promise<{ page: any[]; hasMore: boolean; recentlySeen: any[] }> {
+        const userId = user._id.toString();
+        const tagAffinity: Map<string, number> = (user.feed?.tagAffinity as any) ?? new Map();
+        const authorAffinity: Map<string, number> = (user.feed?.authorAffinity as any) ?? new Map();
+        const recentlySeen: any[] = (user.feed?.recentlySeen as any[]) ?? [];
+        const followingIds: any[] = user.following ?? [];
+        const followingSet = new Set(followingIds.map(id => id.toString()));
+
+        // recentlySeen is ordered most-recent-first; map id -> ring age (0 = most recent).
+        const seenIndex = new Map<string, number>();
+        recentlySeen.forEach((id, i) => seenIndex.set(id.toString(), i));
+
+        // --- Stage 1: candidate generation (bounded + index-backed) ---
+        const selfPool = await Note.find({ creator: userId })
+            .sort({ 'review.nextDueAt': 1 })
+            .limit(FEED.CANDIDATE_POOL);
+
+        const otherPool = followingIds.length
+            ? await Note.find({ creator: { $in: followingIds } })
+                .sort({ dateCreated: -1 })
+                .limit(FEED.CANDIDATE_POOL)
+            : [];
+
+        // --- Stage 2: ranking (prefer unseen; reuse least-recently-seen as fallback) ---
+        const selfRanked = this.rankTrack(selfPool, note => scoreSelf(note, nowMs), seenIndex);
+        const otherRanked = this.rankTrack(
+            otherPool,
+            note => scoreOther(note, nowMs, tagAffinity, authorAffinity, followingSet),
+            seenIndex
+        );
+
+        // --- Stage 3: blend under the self-review floor ---
+        const enforceSelfFloor = selfPool.length >= FEED.MIN_NOTES_FOR_SELF_QUOTA;
+        const page = blend(selfRanked, otherRanked, limit, enforceSelfFloor);
+
+        const hasMore = (selfRanked.length + otherRanked.length) > page.length;
+        return { page, hasMore, recentlySeen };
     }
 
     /**

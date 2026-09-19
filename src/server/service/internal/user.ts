@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { User } from '../../models';
+import { User, newUnsubscribeToken } from '../../models';
 import { EMAIL } from '../../settings';
 import AuthService, { signToken } from './auth';
 
@@ -21,6 +21,28 @@ export interface ToggleFollowResult {
     success: boolean;
     error?: string;
 }
+
+/** The user-facing subset of `settings`. An explicit whitelist: the unsubscribe token is never in it. */
+export interface UserSettings {
+    weeklyDigest: boolean;
+}
+
+export interface SettingsResult {
+    success: boolean;
+    settings?: UserSettings;
+    error?: string;
+}
+
+export interface UnsubscribeResult {
+    success: boolean;
+    /** Whether the token matched an account. Internal; the HTTP response is the same either way. */
+    matched?: boolean;
+    error?: string;
+}
+
+const toUserSettings = (user: any): UserSettings => ({
+    weeklyDigest: user?.settings?.email?.weeklyDigest !== false
+});
 
 class UserService {
     private readonly authService = new AuthService();
@@ -253,6 +275,66 @@ class UserService {
             return { success: true, results };
         } catch (error: any) {
             console.error('Search users error:', error.message);
+            return { success: false, error: 'Server error' };
+        }
+    }
+
+    async getSettings(userId: string): Promise<SettingsResult> {
+        try {
+            const user = await User.findById(userId).select('settings.email.weeklyDigest').lean();
+            if (!user) {
+                return { success: false, error: 'User not found' };
+            }
+            return { success: true, settings: toUserSettings(user) };
+        } catch (error: any) {
+            console.error('Get settings error:', error.message);
+            return { success: false, error: 'Server error' };
+        }
+    }
+
+    async updateSettings(userId: string, data: Partial<UserSettings>): Promise<SettingsResult> {
+        try {
+            // Opting in is the only way an account that predates the email fields can become a
+            // digest recipient, and every digest needs a working unsubscribe link. The filter
+            // makes this a no-op for everyone else.
+            await User.updateOne(
+                { _id: userId, 'settings.email.unsubscribeToken': { $not: { $type: 'string' } } },
+                { $set: { 'settings.email.unsubscribeToken': newUnsubscribeToken() } }
+            );
+
+            const updateFields: any = {};
+            if (data.weeklyDigest !== undefined) updateFields['settings.email.weeklyDigest'] = data.weeklyDigest === true;
+
+            const user = await User.findByIdAndUpdate(userId, { $set: updateFields }, { returnDocument: 'after' })
+                .select('settings.email.weeklyDigest')
+                .lean();
+            if (!user) {
+                return { success: false, error: 'User not found' };
+            }
+            return { success: true, settings: toUserSettings(user) };
+        } catch (error: any) {
+            console.error('Update settings error:', error.message);
+            return { success: false, error: 'Server error' };
+        }
+    }
+
+    /**
+     * One-click unsubscribe. Withdraws consent only — `deliveryStatus` is about the mail system,
+     * not the user, and is left alone. Succeeds whether or not the token matched, so the
+     * endpoint is not a token oracle.
+     */
+    async unsubscribeByToken(token: string): Promise<UnsubscribeResult> {
+        try {
+            if (typeof token !== 'string' || token.length === 0) {
+                return { success: true, matched: false };
+            }
+            const res = await User.updateOne(
+                { 'settings.email.unsubscribeToken': token },
+                { $set: { 'settings.email.weeklyDigest': false } }
+            );
+            return { success: true, matched: res.matchedCount > 0 };
+        } catch (error: any) {
+            console.error('Unsubscribe error:', error.message);
             return { success: false, error: 'Server error' };
         }
     }

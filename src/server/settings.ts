@@ -142,6 +142,26 @@ const EMAIL: any = {
         RESEND_COOLDOWN_SECONDS: 60,
         MAX_SENDS_PER_WINDOW: 5,
         SEND_WINDOW_MINUTES: 60
+    },
+    PASSWORD_RESET: {
+        CODE_LENGTH: 6,
+        EXPIRY_MINUTES: 30,
+        MAX_ATTEMPTS: 5,            // wrong guesses per code
+        RESEND_COOLDOWN_SECONDS: 60,
+        MAX_SENDS_PER_WINDOW: 5,
+        SEND_WINDOW_MINUTES: 60
+    },
+    DIGEST: {
+        ENABLED: parseBool(process.env.DIGEST_ENABLED, true),
+        // Cron expression + IANA timezone, so DST is the scheduler's problem, not ours.
+        CRON: process.env.DIGEST_CRON || '0 9 * * 1',        // Mondays 09:00
+        TIMEZONE: process.env.DIGEST_TIMEZONE || 'UTC',
+        // A user is due when their last digest is older than this. Slightly under a week, so a
+        // cron that fires a few minutes early does not skip everyone for seven days.
+        PERIOD_HOURS: 144,
+        THROTTLE_MS: parseInt(process.env.DIGEST_THROTTLE_MS || '200'),  // pause between recipients
+        NOTE_COUNT: 5,              // notes per digest
+        SNIPPET_LENGTH: 200         // characters of note content shown per note
     }
 };
 

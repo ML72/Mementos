@@ -133,6 +133,53 @@ router.get('/search', privateAccess, [
     }
 });
 
+// @route GET api/users/settings
+// @desc get current user's preferences (an explicit whitelist; never the raw settings subtree)
+// @access private
+router.get('/settings', privateAccess, async (req: Request, res: Response) => {
+    try {
+        const result = await userService.getSettings(req.user!.id);
+
+        if (!result.success) {
+            sendError(res, 404, result.error || 'User not found');
+            return;
+        }
+
+        res.json(result.settings);
+    } catch (err: any) {
+        console.error(err.message);
+        sendError(res, 500, 'Server Error - Please try again');
+    }
+});
+
+// @route PUT api/users/settings
+// @desc update current user's preferences
+// @access private
+router.put('/settings', privateAccess, [
+    check('weeklyDigest', 'weeklyDigest must be true or false').optional().isBoolean({ strict: true })
+], async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        sendError(res, 400, errors.array().map(e => e.msg));
+        return;
+    }
+
+    try {
+        const { weeklyDigest } = req.body;
+        const result = await userService.updateSettings(req.user!.id, { weeklyDigest });
+
+        if (!result.success) {
+            sendError(res, 400, result.error || 'Update failed');
+            return;
+        }
+
+        res.json(result.settings);
+    } catch (err: any) {
+        console.error(err.message);
+        sendError(res, 500, 'Server Error - Please try again');
+    }
+});
+
 // @route GET api/users/:id/profile
 // @desc get a user's profile
 // @access private

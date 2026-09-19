@@ -36,14 +36,15 @@ For deployment-specific guidance (Azure App Service, custom domains), see
 
 ## Email
 
-The app emails a **verification code** when an account is created; the account cannot sign in
-until the code is entered. Nothing below is required to run it locally: with no SMTP configured
+The app emails a **verification code** when an account is created (the account cannot sign in
+until it is entered), a **password reset code** on request, and a **weekly digest** of each
+user's feed (bulk, opt-out, verified addresses only). Nothing below is required to run it locally: with no SMTP configured
 every message is printed to the server console instead of delivered, so the code can be read
 from the terminal.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `APP_URL` | Prod | `http://localhost:5173` | Public origin used to build links inside emails. |
+| `APP_URL` | Prod | `http://localhost:5173` | Public origin used to build links inside emails (open the app, one-click unsubscribe). |
 | `EMAIL_FROM` | Prod | `Mementos <no-reply@mementos.localhost>` | Sender shown on every message. Must be on a domain verified with the mail provider. |
 | `SMTP_URL` | Prod* | (empty) | Full SMTP connection URL, e.g. `smtps://user:pass@smtp.example.com:465`. |
 | `SMTP_HOST` | Prod* | (empty) | SMTP host, when not using `SMTP_URL`. |
@@ -53,7 +54,11 @@ from the terminal.
 | `EMAIL_TRANSPORT` | No | auto | Force `smtp`, `console` or `memory`. Auto picks `smtp` when `SMTP_URL`/`SMTP_HOST` is set, `memory` under `NODE_ENV=test`, otherwise `console`. |
 | `EMAIL_VERIFICATION_REQUIRED` | No | `true` | `false` lets accounts sign in without verifying — an escape hatch if mail delivery is down. |
 | `EMAIL_CODE_SECRET` | No | `JWT_SECRET` | HMAC secret for emailed codes. Rotating it invalidates every in-flight code. |
-| `EMAIL_CODE_IP_MAX_REQUESTS` | No | `20` | Per-IP cap on the public code endpoints (`verify-email`, `resend-verification`) per 15 minutes. |
+| `EMAIL_CODE_IP_MAX_REQUESTS` | No | `20` | Per-IP cap on the public code endpoints (`verify-email`, `resend-verification`, `forgot-password`, `reset-password`) per 15 minutes. |
+| `DIGEST_ENABLED` | No | `true` | Whether the weekly digest job is scheduled at all. |
+| `DIGEST_CRON` | No | `0 9 * * 1` | When the digest runs (cron expression; default Mondays 09:00). Validated at startup — an invalid value is logged loudly and the job is not scheduled. |
+| `DIGEST_TIMEZONE` | No | `UTC` | IANA timezone the cron expression is evaluated in. |
+| `DIGEST_THROTTLE_MS` | No | `200` | Pause between recipients, so a large user base is mailed over a window rather than in one burst. |
 
 \* One of `SMTP_URL` or `SMTP_HOST` is needed for mail to actually be delivered.
 
@@ -79,6 +84,9 @@ the reason it failed. Until a domain is verified, Resend only delivers from
 
 - **Set `APP_URL`, `EMAIL_FROM` and the SMTP variables.** Without SMTP the server logs a warning
   at startup and prints every message to the console.
+- The digest is safe to schedule on **every** instance of a multi-instance deployment: each
+  recipient is claimed with an atomic compare-and-set before being mailed, so no one is mailed
+  twice and no external lock is needed.
 - **Existing accounts** were all created with `login.verified: false`, so each is asked to verify
   the next time it signs in (sessions already open are untouched). To exempt them instead:
   `db.users.updateMany({}, { $set: { 'login.verified': true } })` before deploying.

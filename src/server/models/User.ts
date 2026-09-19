@@ -7,7 +7,7 @@ import { CONTENT_LIMITS } from '../settings';
  * session, so the token *is* the auth — it has to be unguessable and unique per user.
  * base64url is safe to drop straight into a URL.
  */
-const newUnsubscribeToken = (): string => randomBytes(32).toString('base64url');
+export const newUnsubscribeToken = (): string => randomBytes(32).toString('base64url');
 
 const UserSchema = new Schema({
     login: {
@@ -52,10 +52,10 @@ const UserSchema = new Schema({
         sendCount: { type: Number, default: 0 },
         sendWindowStartedAt: { type: Date, default: null }
     },
-    // Forgot-password state — reserved, nothing reads it yet. Only a hash of the emailed code
-    // is stored, and only until `expiresAt`. Two counters cover two different abuses:
-    // `attempts` caps guesses against a live code (the space is only 10^6), while
-    // `sendCount`/`sendWindowStartedAt`/`lastSentAt` cap issuance so the endpoint can't be
+    // Forgot-password state, written by CodeService for AuthService.requestPasswordReset/resetPassword. Only an
+    // HMAC of the emailed code is stored, and only until `expiresAt`. Two counters cover two
+    // different abuses: `attempts` caps guesses against a live code (the space is only 10^6),
+    // while `sendCount`/`sendWindowStartedAt`/`lastSentAt` cap issuance so the endpoint can't be
     // used to flood an inbox. Null/0 is the resting state, not "unset".
     passwordReset: {
         codeHash: { type: String, default: null },
@@ -105,8 +105,9 @@ const UserSchema = new Schema({
     // User-controlled preferences, namespaced by concern so non-email settings (theme,
     // locale) can be added without reshaping what is here.
     settings: {
-        // Reserved, nothing reads it yet. Three groups a bulk send has to satisfy: consent,
-        // deliverability, and what was last sent.
+        // Three groups a bulk send has to satisfy: consent (set from /api/users/settings and
+        // the unsubscribe link), deliverability (EmailService), and what was last sent
+        // (DigestService).
         email: {
             // Explicit `true` rather than an absent field, so the digest query is a plain
             // equality match and not "anything that isn't false".

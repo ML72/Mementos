@@ -10,6 +10,8 @@
  * - POST /api/auth - Authenticate user and get JWT token
  * - POST /api/auth/verify-email - Redeem an emailed verification code and get JWT token
  * - POST /api/auth/resend-verification - Email a fresh verification code
+ * - POST /api/auth/forgot-password - Email a password reset code
+ * - POST /api/auth/reset-password - Redeem a reset code and set a new password
  */
 
 import { Request, Response, Router } from 'express';
@@ -17,7 +19,7 @@ import { check, validationResult } from 'express-validator';
 import { privateAccess, emailCodeLimiter } from '../middleware';
 import { AuthService } from '../service';
 import { sendError } from '../util';
-import { EMAIL } from '../settings';
+import { CONTENT_LIMITS, EMAIL } from '../settings';
 
 const router = Router();
 const authService = new AuthService();
@@ -125,6 +127,70 @@ router.post('/resend-verification', emailCodeLimiter, [
     // Respond before doing the work, so timing does not distinguish the outcomes either.
     res.json({ msg: 'If that account needs verifying, a new code has been sent.' });
     await authService.sendVerificationCode(req.body.email);
+});
+
+// Identical for every outcome (unknown address, cooldown, cap reached, sent), so the endpoint
+// cannot be used to discover which addresses are registered.
+const FORGOT_PASSWORD_RESPONSE = { msg: 'If an account exists for that email, a reset code has been sent.' };
+
+// @route POST api/auth/forgot-password
+// @desc email a password reset code
+// @access public
+router.post('/forgot-password', emailCodeLimiter, [
+    check('email', 'Please enter a valid email').trim().isEmail().toLowerCase()
+], async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()) {
+        sendError(res, 400, errors.array().map(e => e.msg));
+        return;
+    }
+
+    // Respond *before* doing the work. The generic message hides what happened, but not how
+    // long it took: a registered address does a lookup, a write and an SMTP round-trip while an
+    // unknown one returns at once. Answering first makes the two indistinguishable.
+    res.json(FORGOT_PASSWORD_RESPONSE);
+
+    try {
+        await authService.requestPasswordReset(req.body.email);
+    } catch(err: any) {
+        // The service never throws; this is belt and braces. Nothing can be sent at this point.
+        console.error(err.message);
+    }
+});
+
+// @route POST api/auth/reset-password
+// @desc redeem a reset code and set a new password; signs every existing session out
+// @access public
+router.post('/reset-password', emailCodeLimiter, [
+    check('email', 'Please enter a valid email').trim().isEmail().toLowerCase(),
+    check('code', `Reset code must be ${EMAIL.PASSWORD_RESET.CODE_LENGTH} digits`)
+        .isString()
+        .trim()
+        .matches(new RegExp(`^\\d{${EMAIL.PASSWORD_RESET.CODE_LENGTH}}$`)),
+    check('password', `Password must be between ${CONTENT_LIMITS.USER.PASSWORD_MIN_LENGTH} and ${CONTENT_LIMITS.USER.PASSWORD_MAX_LENGTH} characters long`)
+        .isString()
+        .isLength({ min: CONTENT_LIMITS.USER.PASSWORD_MIN_LENGTH, max: CONTENT_LIMITS.USER.PASSWORD_MAX_LENGTH })
+], async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()) {
+        sendError(res, 400, errors.array().map(e => e.msg));
+        return;
+    }
+
+    try {
+        const { email, code, password } = req.body;
+        const result = await authService.resetPassword(email, code, password);
+
+        if (!result.success) {
+            sendError(res, 400, result.error || 'Password reset failed');
+            return;
+        }
+
+        res.json({ msg: 'Password updated. Please sign in with your new password.' });
+    } catch(err: any) {
+        console.error(err.message);
+        sendError(res, 500, 'Server Error - Please try again');
+    }
 });
 
 export default router;

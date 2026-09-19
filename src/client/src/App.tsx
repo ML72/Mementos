@@ -10,6 +10,7 @@ import { initializeAuth } from './service/auth';
 import Landing from './pages/public/Landing';
 import Login from './pages/public/Login';
 import VerifyEmail from './pages/public/VerifyEmail';
+import ForgotPassword from './pages/public/ForgotPassword';
 import About from './pages/public/About';
 import HomePage from './pages/private/HomePage';
 import PeoplePage from './pages/private/PeoplePage';
@@ -55,6 +56,14 @@ const App: React.FC = () => {
           element={
             <PublicPage>
               <VerifyEmail />
+            </PublicPage>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicPage>
+              <ForgotPassword />
             </PublicPage>
           }
         />

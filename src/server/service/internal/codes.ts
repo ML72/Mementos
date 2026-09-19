@@ -4,13 +4,13 @@ import { EMAIL } from '../../settings';
 
 /**
  * Emailed one-time codes. One implementation for every flow that mails a short numeric code
- * and later redeems it (email verification today), since the abuse cases are the same: guessing
+ * and later redeems it (email verification, password reset), since the abuse cases are the same: guessing
  * a live code, and using the endpoint to flood an inbox.
  *
  * `path` names the subtree on User holding the state: { codeHash, expiresAt, attempts,
  * lastSentAt, sendCount, sendWindowStartedAt }.
  */
-export type CodePath = 'emailVerification';
+export type CodePath = 'emailVerification' | 'passwordReset';
 
 export interface CodeLimits {
     CODE_LENGTH: number;

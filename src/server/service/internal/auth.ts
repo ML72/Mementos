@@ -2,8 +2,9 @@ import bcrypt from 'bcryptjs';
 import { sign } from 'jsonwebtoken';
 import { User } from '../../models';
 import { EMAIL, JWT_SECRET } from '../../settings';
-import { getMailer, renderVerificationEmail } from '../../mail';
+import { getMailer, renderVerificationEmail, renderPasswordResetEmail, SendFailure } from '../../mail';
 import CodeService, { IssueSkipReason } from './codes';
+import EmailService from './email';
 
 export interface AuthenticateUserResult {
     success: boolean;
@@ -29,6 +30,18 @@ export interface SendVerificationResult {
     reason?: IssueSkipReason | 'no-user' | 'already-verified' | 'send-failed';
 }
 
+/** Same contract as SendVerificationResult: always `success`, details for tests and logs only. */
+export interface RequestPasswordResetResult {
+    success: true;
+    sent: boolean;
+    reason?: IssueSkipReason | 'no-user' | 'send-failed';
+}
+
+export interface ResetPasswordResult {
+    success: boolean;
+    error?: string;
+}
+
 export interface VerifyEmailResult {
     success: boolean;
     token?: string;
@@ -36,6 +49,7 @@ export interface VerifyEmailResult {
 }
 
 /** Same message for every failure so the response never narrates which check failed. */
+export const INVALID_RESET_CODE = 'Invalid or expired reset code';
 export const INVALID_VERIFICATION_CODE = 'Invalid or expired verification code';
 export const EMAIL_UNVERIFIED = 'Please verify your email address. We sent you a code.';
 
@@ -47,6 +61,7 @@ export const signToken = (userId: string): string =>
 
 class AuthService {
     private readonly codeService = new CodeService();
+    private readonly emailService = new EmailService();
 
     async authenticateUser(email: string, password: string): Promise<AuthenticateUserResult> {
         try {
@@ -133,6 +148,66 @@ class AuthService {
             return { success: true, token: signToken(userId) };
         } catch (error: any) {
             console.error('Verify email error:', error.message);
+            return { success: false, error: 'Server error' };
+        }
+    }
+
+    /**
+     * Issue a reset code and email it, subject to per-account rate limits. Never fails from the
+     * caller's point of view: an unknown address, a cooled-down resend and an exhausted window
+     * all look like a successful send, so the endpoint cannot be used to discover which
+     * addresses are registered.
+     */
+    async requestPasswordReset(email: string): Promise<RequestPasswordResetResult> {
+        try {
+            const user = await User.findOne({ 'login.email': normalizeEmail(email) })
+                .select('login.email profile.fullName passwordReset')
+                .lean() as any;
+            if (!user) return { success: true, sent: false, reason: 'no-user' };
+
+            const issued = await this.codeService.issue(user._id, 'passwordReset', user.passwordReset, EMAIL.PASSWORD_RESET);
+            if (!issued.code) return { success: true, sent: false, reason: issued.reason };
+
+            try {
+                await getMailer().send(renderPasswordResetEmail({
+                    to: user.login.email,
+                    fullName: user.profile?.fullName || 'there',
+                    code: issued.code
+                }));
+            } catch (err: any) {
+                // Transactional mail is attempted whatever the delivery status says, but a
+                // definite rejection is still worth recording for the bulk path.
+                if (err instanceof SendFailure) {
+                    await this.emailService.recordSendFailure(user.login.email, err.kind);
+                }
+                console.error('Password reset email failed:', err?.message || err);
+                return { success: true, sent: false, reason: 'send-failed' };
+            }
+            return { success: true, sent: true };
+        } catch (error: any) {
+            console.error('Request password reset error:', error.message);
+            return { success: true, sent: false, reason: 'send-failed' };
+        }
+    }
+
+    /**
+     * Redeem a reset code and set the new password. Stamping `passwordChangedAt` is what signs
+     * every existing session out (see middleware/auth.ts). Redeeming a code also proves control
+     * of the mailbox, so the address counts as verified from here on.
+     */
+    async resetPassword(email: string, code: string, password: string): Promise<ResetPasswordResult> {
+        try {
+            const userId = await this.codeService.redeem(
+                normalizeEmail(email), 'passwordReset', code, EMAIL.PASSWORD_RESET,
+                async () => ({
+                    'login.password': await bcrypt.hash(password, await bcrypt.genSalt(10)),
+                    'login.passwordChangedAt': new Date(),
+                    'login.verified': true
+                })
+            );
+            return userId ? { success: true } : { success: false, error: INVALID_RESET_CODE };
+        } catch (error: any) {
+            console.error('Reset password error:', error.message);
             return { success: false, error: 'Server error' };
         }
     }
