@@ -15,7 +15,9 @@ import { setNewAlert } from '../../service/alert';
 import { verifyEmail, resendVerification } from '../../service/auth';
 import CustomPage from '../../components/layout/CustomPage';
 
+// Mirror EMAIL.VERIFICATION in src/server/settings.ts (the client cannot import server code).
 const CODE_LENGTH = 6;
+const CODE_EXPIRY_MINUTES = 30;
 const fieldSx = { '& .MuiOutlinedInput-root': { borderRadius: '8px' } };
 
 /**
@@ -70,7 +72,7 @@ const VerifyEmail: React.FC = () => {
               Verify your email
             </Typography>
             <Typography variant="body1" sx={{ color: '#4B5563' }}>
-              We emailed a {CODE_LENGTH}-digit code to {email || 'your address'}. It expires in 30 minutes.
+              We emailed a {CODE_LENGTH}-digit code to {email || 'your address'}. It expires in {CODE_EXPIRY_MINUTES} minutes.
             </Typography>
           </Box>
 

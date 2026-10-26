@@ -12,3 +12,5 @@ export type {
     NoteResult,
     FeedResult
 } from './internal';
+export { getMailer, setMailer, checkMailer, classifySmtpError, SendFailure, MemoryMailer, ConsoleMailer, SmtpMailer } from './external';
+export type { Mailer, OutgoingMail, SendFailureKind } from './external';

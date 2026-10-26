@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { User } from '../../models';
 import { EMAIL } from '../../settings';
-import AuthService, { signToken } from './auth';
+import AuthService, { normalizeEmail, signToken } from './auth';
 
 export interface CreateUserData {
     email: string;
@@ -29,7 +29,7 @@ class UserService {
         try {
             const { email, password, fullName } = userData;
 
-            let user = await User.findOne({ 'login.email': email.trim().toLowerCase() });
+            let user = await User.findOne({ 'login.email': normalizeEmail(email) });
             if (user) {
                 return { success: false, error: 'User already exists' };
             }

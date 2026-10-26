@@ -42,6 +42,8 @@ This repository contains the code for Mementos API endpoints and web app fronten
 
 5. The server is now running at `localhost:3000` and the client is now running at `localhost:5173`. Open a browser and go to the client URL to see the app!
 
+    The server log has one status line per service it connects to, starting with `DATABASE:` or `EMAIL:`. If MongoDB isn't running, `DATABASE: could not connect to MongoDB` appears after about 30 seconds and the server stops: start it (step 3), then restart `npm run dev`.
+
 **Stopping the app:**
 
 1. Type `Ctrl+C` in the terminal with the server to stop the server.
@@ -62,8 +64,9 @@ This repository contains the code for Mementos API endpoints and web app fronten
 
 New accounts must enter an emailed code before they can sign in. No mail server is needed
 locally: without SMTP settings every email is printed to the server console, so read the code
-from the terminal running `npm run dev`. The seeded users are already verified. SMTP (Resend)
-setup is in [docs/ENVIRONMENT_OVERVIEW.md](docs/ENVIRONMENT_OVERVIEW.md#email).
+from the terminal running `npm run dev`. The seeded users are already verified. To see the HTML
+version of the emails, run `npm run email:preview`. Sending real email over SMTP locally is covered
+in [docs/ENVIRONMENT_OVERVIEW.md](docs/ENVIRONMENT_OVERVIEW.md#testing-locally).
 
 ## Updating Packages
 

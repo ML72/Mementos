@@ -147,8 +147,9 @@ UserSchema.index(
 // filter scopes `unique` to documents that actually carry a token, so ones written before the
 // field existed can't collide with each other on a missing value.
 //
-// NOTE: never put a TTL index on `passwordReset.expiresAt` — TTL deletes the whole *document*,
-// which here is the user account. Expired reset state is cleared by writing nulls over it.
+// NOTE: never put a TTL index on `emailVerification.expiresAt` or `passwordReset.expiresAt` —
+// TTL deletes the whole *document*, which here is the user account. Expired code state is
+// cleared by writing nulls over it.
 UserSchema.index(
     { 'settings.email.unsubscribeToken': 1 },
     {

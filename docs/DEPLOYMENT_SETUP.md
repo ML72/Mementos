@@ -270,6 +270,8 @@ az webapp log tail \
   --resource-group rg-mementos-dev
 ```
 
+Each start logs one status line per service, `DATABASE: …` and `EMAIL: …`; a failed connection says why there.
+
 **Common causes:**
 - Missing environment variables
 - Incorrect MongoDB connection string

@@ -32,8 +32,11 @@ npx jest test/integration/notes.test.ts            # single test file
 npx jest -t "should register a new user"           # single test by name
 
 npm run lint            # eslint over both packages
-npm run lint:server     # root package only (src/server, src/types, test/, root configs)
+npm run lint:server     # root package only (src/server, src/types, test/, scripts/, root configs)
 npm run lint:client     # client package only
+
+npm run email:preview                    # render every email template to HTML (prints file:// links)
+npm run email:send -- you@example.com    # send every template through the SMTP settings in .env
 ```
 
 The Vite dev server proxies `/api/*` to `http://localhost:3000`, so the client talks to the API with same-origin relative URLs in every environment.
@@ -43,9 +46,10 @@ The Vite dev server proxies `/api/*` to `http://localhost:3000`, so the client t
 Strict three-layer separation under `src/server`:
 
 - **routes/** — Express routers, one per resource (`auth`, `users`, `notes`), mounted at `/api/*` in `index.ts`. Routes handle HTTP only: `express-validator` checks, calling a service, and shaping the response. They do **not** touch Mongoose directly.
-- **service/internal/** — business logic in classes (`AuthService`, `UserService`, `NotesService`, `FeedService`, `CodeService`). Services **never throw to the caller**; they return result objects shaped `{ success: boolean, error?: string, ...data }`. Routes branch on `result.success` and pick the HTTP status. Public surface is re-exported through `service/index.ts`.
+- **service/internal/** — our own services: business logic in classes (`AuthService`, `UserService`, `NotesService`, `FeedService`, `CodeService`). Services **never throw to the caller**; they return result objects shaped `{ success: boolean, error?: string, ...data }`. Routes branch on `result.success` and pick the HTTP status. Public surface of `internal/` and `external/` is re-exported through `service/index.ts`.
+- **service/external/** — connections to services outside the app, no business logic: `mailer.ts` sends email over SMTP (`getMailer()`). Without `SMTP_HOST` it prints each message to the console instead, and under test it keeps them in a `MemoryMailer` (tests inject their own via `setMailer`). These can throw (`send` rejects with a `SendFailure`); the internal services catch it.
 - **models/** — Mongoose schemas (`User`, `Note`).
-- **mail/** — infrastructure, not business logic: the `Mailer` interface with SMTP/console/memory transports (`getMailer()`; tests inject a `MemoryMailer` via `setMailer`) and the templates. Templates render through the escaping `html` tagged template in `mail/templates.ts` — never build HTML from user content by concatenation.
+- **config/** — app setup (`connectDB`, CSP/CORS, the www redirect) and the email templates in `mail_templates.ts`. Templates render through its escaping `html` tagged template — never build HTML from user content by concatenation. Give each new template a sample in `scripts/email.ts` (local preview/send tooling, outside the server build).
 
 When adding an endpoint, follow the chain: validate in the route → call/extend a service method returning a result object → return data or `sendError`. Don't put DB queries in routes or HTTP concerns in services.
 
@@ -54,6 +58,7 @@ When adding an endpoint, follow the chain: validate in the route → call/extend
 - **Errors:** always use `sendError(res, status, message, extra?)` from `util/http_responses.ts`. It normalizes to `{ errors: [{ msg }], is_token_invalid, ...extra }` — the client parses `errors[].msg`. `message` may be a string or string array (validation errors pass `errors.array().map(e => e.msg)`). There is no `sendSuccess` helper; success responses use `res.json(...)` directly.
 - **Auth:** JWT is sent in the **`x-auth-token` header** (not `Authorization: Bearer`). The `privateAccess` middleware (`middleware/auth.ts`) verifies it and sets `req.user = { id }`. Protected routes list `privateAccess` first. Token-invalid responses set `is_token_invalid: true` so the client can force a logout.
 - **Config:** all env/tunable values live in `settings.ts` (`JWT_SECRET`, `MONGO_URI`, `CONTENT_LIMITS`, `REQUEST_CONSTRAINTS`, `EMAIL`, etc.) with hardcoded dev defaults. Schemas and validators import limits from here rather than hardcoding numbers — change a limit in one place.
+- **Startup status lines:** each service the server connects to logs one line at boot, prefixed with its name: `DATABASE:` from `connectDB` (which also logs each later drop and reconnect) and `EMAIL:` from `checkMailer`. Give a new service the same, so one that is down or misconfigured shows in the server log.
 - **Models:** `User` nests `login` (email/password/verified) and `profile` (fullName/bio), plus `following`/`followers`/`likedNotes` ObjectId arrays. `login.email` is stored **lowercased and trimmed** (schema `lowercase`/`trim`, which Mongoose also applies to query filters) and routes normalize it too — never compare it case-sensitively. Passwords are bcrypt-hashed in `UserService.createUser`. Mutual follow/unfollow uses a `bulkWrite` to update both users atomically. `User` has a weighted **text index** on `profile.fullName` (weight 5) and `profile.bio` (weight 1); user search uses `$text` with `textScore` sorting, plus a direct `_id` lookup when the query looks like an ObjectId.
 - **Email verification:** registration returns `{ verificationRequired: true }` and **no token**; a 6-digit code is emailed and `POST /api/auth/verify-email { email, code }` verifies the account and returns the token. Signing in to an unverified account with the right password gets a 403 carrying `email_unverified: true` (and a fresh code); the client routes both cases to `/verify-email`. `EMAIL.VERIFICATION.REQUIRED=false` turns the gate off. Emailed codes go through `CodeService` (`issue`/`redeem`, keyed by the User subtree holding the state): HMAC-hashed, attempt counter incremented in the same write that fetches the code, issuance limits written as compare-and-set updates, plus the per-IP `emailCodeLimiter`. Endpoints that take an address from the public answer identically whatever the outcome, and respond before doing the work.
 - **Reserved email schema:** `User` still carries fields for features that are **not built yet**: `login.passwordChangedAt`, the `passwordReset` subtree (same shape `CodeService` expects), and `settings.email.*` (weekly-digest opt-out, unsubscribe token, delivery health, last-sent bookkeeping). `AuthService.getUserById` projects out `login.password`, `emailVerification`, `passwordReset` and `settings.email.unsubscribeToken` — keep any new raw-user read doing the same.
@@ -70,14 +75,14 @@ When adding an endpoint, follow the chain: validate in the route → call/extend
 
 ## Testing
 
-- Integration tests (`test/integration/*.test.ts`) use Jest + ts-jest + Supertest against the real Express `app` and **separate databases** (`mementos_test*`). Docker Mongo must be running. Suites that just need a logged-in user call `registerVerified` from `test/helpers/auth.ts`; mail tests inject a `MemoryMailer` and read codes back out of captured messages.
-- `index.ts` skips `connectDB()` and `app.listen()` when `NODE_ENV === 'test'`; each test file connects/disconnects Mongoose itself and clears collections in `beforeEach`.
+- Integration tests (`test/integration/*.test.ts`) use Jest + ts-jest + Supertest against the real Express `app` and **separate databases** (`mementos_test*`). Docker Mongo must be running. Suites that just need a logged-in user call `registerVerified` from `test/helpers/auth.ts`; mail tests inject a `MemoryMailer` and read codes back out of captured messages. `NODE_ENV=test` always selects the memory transport, so no `.env` setting can make the suite send real mail.
+- `index.ts` skips `connectDB()`, `checkMailer()` and `app.listen()` when `NODE_ENV === 'test'`; each test file connects/disconnects Mongoose itself and clears collections in `beforeEach`.
 - Jest runs with `maxWorkers: 1` and `forceExit: true` — tests share one DB connection and must run serially. Keep that in mind when adding tests.
 - Cypress is configured (`cypress.config.ts`, baseUrl :5173) for e2e but specs may not yet exist.
 
 ## Production / deployment
 
-In production (`NODE_ENV=production`) the Express server additionally serves the built client from `src/client/dist` and falls back to `index.html` for non-`/api` routes — the whole app deploys as one unit (Azure App Service). See `docs/DEPLOYMENT_OVERVIEW.md` and `docs/DEPLOYMENT_SETUP.md`. Required env vars: `NODE_ENV`, `MONGO_URI`, `JWT_SECRET`; for email to be delivered also `APP_URL`, `EMAIL_FROM` and the `SMTP_*` variables (Resend — see `docs/ENVIRONMENT_OVERVIEW.md`).
+In production (`NODE_ENV=production`) the Express server additionally serves the built client from `src/client/dist` and falls back to `index.html` for non-`/api` routes — the whole app deploys as one unit (Azure App Service). See `docs/DEPLOYMENT_OVERVIEW.md` and `docs/DEPLOYMENT_SETUP.md`. Required env vars: `NODE_ENV`, `MONGO_URI`, `JWT_SECRET`; for email to be delivered also `APP_URL`, `EMAIL_FROM` and the `SMTP_*` variables (any SMTP provider; the project uses Resend — see `docs/ENVIRONMENT_OVERVIEW.md`).
 
 ## Gotchas
 

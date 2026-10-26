@@ -1,5 +1,5 @@
 import nodemailer, { Transporter } from 'nodemailer';
-import { EMAIL, NODE_ENV } from '../settings';
+import { EMAIL } from '../../settings';
 
 /** One outgoing message: templates produce these, a Mailer delivers them. */
 export interface OutgoingMail {
@@ -60,20 +60,19 @@ export class SmtpMailer implements Mailer {
 
     constructor() {
         const smtp = EMAIL.SMTP;
-        this.transporter = smtp.URL
-            ? nodemailer.createTransport(smtp.URL)
-            : nodemailer.createTransport({
-                host: smtp.HOST,
-                port: smtp.PORT,
-                secure: smtp.SECURE,
-                auth: smtp.USER ? { user: smtp.USER, pass: smtp.PASS } : undefined
-            });
+        this.transporter = nodemailer.createTransport({
+            host: smtp.HOST,
+            port: smtp.PORT,
+            secure: smtp.SECURE,
+            auth: smtp.USER ? { user: smtp.USER, pass: smtp.PASS } : undefined
+        });
     }
 
-    /** Connect and authenticate without sending anything; resolves false (and logs) on failure. */
+    /** Connect and authenticate without sending anything, and log the outcome in one line. */
     async verify(): Promise<boolean> {
         try {
             await this.transporter.verify();
+            console.log('EMAIL: SMTP connection verified');
             return true;
         } catch (err: any) {
             console.error(`EMAIL: SMTP check failed (${err?.code || 'error'}): ${err?.message || err}`);
@@ -97,8 +96,9 @@ export class SmtpMailer implements Mailer {
 }
 
 /**
- * Development transport: prints the message instead of delivering it, so the whole flow (emailed
- * codes included) can be exercised with no mail server. Never used when SMTP is configured.
+ * Used when SMTP_HOST is not set: prints the message instead of delivering it, so the whole flow
+ * (emailed codes included) can be exercised with no mail server. Only the plain-text part is
+ * printed; `npm run email:preview` renders the HTML.
  */
 export class ConsoleMailer implements Mailer {
     readonly name = 'console';
@@ -106,9 +106,9 @@ export class ConsoleMailer implements Mailer {
     async send(mail: OutgoingMail): Promise<void> {
         const headers = Object.entries(mail.headers || {}).map(([k, v]) => `${k}: ${v}`).join('\n');
         console.log(
-            `\n----- EMAIL (not delivered: no SMTP configured) -----\n` +
+            `\n----- EMAIL (not delivered: SMTP_HOST is not set) -----\n` +
             `To: ${mail.to}\nSubject: ${mail.subject}\n${headers ? headers + '\n' : ''}\n${mail.text}\n` +
-            `------------------------------------------------------\n`
+            `-------------------------------------------------------\n`
         );
     }
 }
@@ -120,17 +120,10 @@ export class ConsoleMailer implements Mailer {
 export class MemoryMailer implements Mailer {
     readonly name = 'memory';
     readonly sent: OutgoingMail[] = [];
-    /** When set, the next `send` rejects with this failure (then clears itself). */
-    failNextWith: SendFailure | null = null;
-    /** When set, every send to this address fails with the given kind. */
+    /** Every send to one of these (lowercased) addresses fails with the given kind. */
     failAddresses = new Map<string, SendFailureKind>();
 
     async send(mail: OutgoingMail): Promise<void> {
-        if (this.failNextWith) {
-            const failure = this.failNextWith;
-            this.failNextWith = null;
-            throw failure;
-        }
         const kind = this.failAddresses.get(mail.to.toLowerCase());
         if (kind) throw new SendFailure(kind, `Simulated ${kind} failure for ${mail.to}`);
         this.sent.push(mail);
@@ -138,7 +131,6 @@ export class MemoryMailer implements Mailer {
 
     reset(): void {
         this.sent.length = 0;
-        this.failNextWith = null;
         this.failAddresses.clear();
     }
 
@@ -160,16 +152,24 @@ let current: Mailer | null = null;
 
 /** The process-wide mailer, built lazily from settings. */
 export function getMailer(): Mailer {
-    if (!current) {
-        current = buildMailer();
-        if (NODE_ENV === 'production' && current.name !== 'smtp') {
-            console.warn('EMAIL: no SMTP configured (SMTP_URL or SMTP_HOST). Email will be logged to the console, not delivered.');
-        }
-    }
+    if (!current) current = buildMailer();
     return current;
 }
 
 /** Swap the mailer (tests inject a MemoryMailer; pass null to rebuild from settings). */
 export function setMailer(mailer: Mailer | null): void {
     current = mailer;
+}
+
+/**
+ * Log one status line for email at boot: whether the SMTP server accepts our login, or that mail
+ * is not delivered at all (the development default; in production nobody would get their codes).
+ */
+export async function checkMailer(): Promise<void> {
+    const mailer = getMailer();
+    if (mailer instanceof SmtpMailer) {
+        await mailer.verify();
+    } else {
+        console.warn('EMAIL: SMTP_HOST is not set, so emails are printed here, not delivered');
+    }
 }

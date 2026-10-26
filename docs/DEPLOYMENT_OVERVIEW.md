@@ -108,7 +108,7 @@ npm run install:all && npm run build
 ## Post-Deployment Verification
 
 1. Check that environment variables are set correctly
-2. Verify MongoDB connection
+2. Verify the MongoDB and SMTP connections: the application log shows `DATABASE: connected to MongoDB at …` and `EMAIL: SMTP connection verified` at each start, or the reason either failed
 3. Test the health endpoint: `https://your-app.azurewebsites.net/api/health` (returns `{"status":"ok"}`)
 4. Test frontend: `https://your-app.azurewebsites.net`
 5. Check application logs in Azure Portal

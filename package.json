@@ -11,6 +11,8 @@
     "docker:down": "docker-compose -f docker/app.yml down",
     "docker:db:up": "docker-compose -f docker/services/mongodb.yml up -d",
     "docker:db:down": "docker-compose -f docker/services/mongodb.yml down",
+    "email:preview": "ts-node scripts/email.ts preview",
+    "email:send": "ts-node scripts/email.ts send",
     "install:all": "npm install && cd src/client && npm install && cd ../../",
     "build": "npm run build:client && npm run build:server",
     "build:client": "cd src/client && npm run build",

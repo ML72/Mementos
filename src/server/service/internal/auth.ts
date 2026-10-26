@@ -2,7 +2,8 @@ import bcrypt from 'bcryptjs';
 import { sign } from 'jsonwebtoken';
 import { User } from '../../models';
 import { EMAIL, JWT_SECRET } from '../../settings';
-import { getMailer, renderVerificationEmail } from '../../mail';
+import { renderVerificationEmail } from '../../config';
+import { getMailer } from '../external';
 import CodeService, { IssueSkipReason } from './codes';
 
 export interface AuthenticateUserResult {

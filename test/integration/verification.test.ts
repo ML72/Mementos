@@ -3,8 +3,7 @@ import mongoose from 'mongoose';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import app from '../../src/server/index';
 import { User } from '../../src/server/models';
-import { MemoryMailer, setMailer } from '../../src/server/mail';
-import { AuthService, INVALID_VERIFICATION_CODE } from '../../src/server/service';
+import { AuthService, INVALID_VERIFICATION_CODE, MemoryMailer, setMailer } from '../../src/server/service';
 import { EMAIL } from '../../src/server/settings';
 import { emailCodeLimiter } from '../../src/server/middleware';
 

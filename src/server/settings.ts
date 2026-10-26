@@ -95,18 +95,18 @@ const FEED: any = {
     RECENTLY_SEEN_CAP: 100
 };
 
-// Email. The transport is picked from the environment: SMTP when credentials are configured,
-// otherwise `console` (each message is printed instead of delivered) so the app runs with no
-// mail server. Tests use `memory`, which captures messages for assertions.
+// Email is sent over SMTP, which any provider supports, once SMTP_HOST is set. Without it each
+// message is printed to the console instead (`console`), so the app runs with no mail server.
+// Tests always use `memory`, which captures messages for assertions.
 type EmailTransport = 'smtp' | 'console' | 'memory';
 const pickEmailTransport = (): EmailTransport => {
-    const explicit = process.env.EMAIL_TRANSPORT as EmailTransport | undefined;
-    if (explicit === 'smtp' || explicit === 'console' || explicit === 'memory') return explicit;
+    // Checked first so no .env setting can make the test suite deliver real mail.
     if (NODE_ENV === 'test') return 'memory';
-    return (process.env.SMTP_URL || process.env.SMTP_HOST) ? 'smtp' : 'console';
+    return process.env.SMTP_HOST ? 'smtp' : 'console';
 };
 const parseBool = (value: string | undefined, fallback: boolean): boolean =>
     value === undefined || value === '' ? fallback : ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
 
 const EMAIL: any = {
     TRANSPORT: pickEmailTransport(),
@@ -115,11 +115,11 @@ const EMAIL: any = {
     // the Vite dev server, which proxies /api.
     APP_URL: (process.env.APP_URL || 'http://localhost:5173').replace(/\/+$/, ''),
     SMTP: {
-        // Either a full URL (smtps://user:pass@host:465) or host/port/user/pass.
-        URL: process.env.SMTP_URL || '',
         HOST: process.env.SMTP_HOST || '',
-        PORT: parseInt(process.env.SMTP_PORT || '587'),
-        SECURE: parseBool(process.env.SMTP_SECURE, false),   // true for implicit TLS (465)
+        PORT: SMTP_PORT,
+        // Implicit TLS (465) vs STARTTLS (587). Defaults from the port because a mismatch does
+        // not fail fast: every send stalls until nodemailer's greeting timeout.
+        SECURE: parseBool(process.env.SMTP_SECURE, SMTP_PORT === 465),
         USER: process.env.SMTP_USER || '',
         PASS: process.env.SMTP_PASS || ''
     },
@@ -136,8 +136,8 @@ const EMAIL: any = {
     VERIFICATION: {
         // When false, accounts can sign in without verifying (escape hatch if mail is down).
         REQUIRED: parseBool(process.env.EMAIL_VERIFICATION_REQUIRED, true),
-        CODE_LENGTH: 6,
-        EXPIRY_MINUTES: 30,
+        CODE_LENGTH: 6,             // mirrored in src/client/src/pages/public/VerifyEmail.tsx
+        EXPIRY_MINUTES: 30,         // mirrored there too
         MAX_ATTEMPTS: 5,            // wrong guesses per code
         RESEND_COOLDOWN_SECONDS: 60,
         MAX_SENDS_PER_WINDOW: 5,

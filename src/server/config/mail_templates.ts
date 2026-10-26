@@ -1,5 +1,5 @@
 import { EMAIL } from '../settings';
-import { OutgoingMail } from './mailer';
+import { OutgoingMail } from '../service/external';
 
 /**
  * Email and page templates. Everything user-controlled (names today, note content later) ends

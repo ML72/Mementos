@@ -1,6 +1,6 @@
-import { describe, it, expect } from '@jest/globals';
-import { escapeHtml, html, raw, renderVerificationEmail } from '../../src/server/mail/templates';
-import { classifySmtpError } from '../../src/server/mail/mailer';
+import { describe, it, expect, jest } from '@jest/globals';
+import { escapeHtml, html, raw, renderVerificationEmail } from '../../src/server/config/mail_templates';
+import { classifySmtpError } from '../../src/server/service/external/mailer';
 import { generateCode, hashCode } from '../../src/server/service/internal/codes';
 import { EMAIL } from '../../src/server/settings';
 
@@ -52,6 +52,42 @@ describe('classifySmtpError', () => {
         expect(classifySmtpError({ code: 'EAUTH', responseCode: 535 })).toBe('transient');
         expect(classifySmtpError({ responseCode: 500 })).toBe('transient');
         expect(classifySmtpError(undefined)).toBe('transient');
+    });
+});
+
+describe('email settings', () => {
+    // settings.ts reads the environment once, at import, so each case loads a fresh copy. Every
+    // variable read is predefined (empty = unset): dotenv never overrides an existing key, so a
+    // developer's .env can't leak into these cases.
+    const UNSET = { SMTP_HOST: '', SMTP_PORT: '', SMTP_SECURE: '' };
+    const loadEmailSettings = async (env: Record<string, string>): Promise<any> => {
+        const saved = process.env;
+        process.env = { ...saved, ...UNSET, ...env };
+        try {
+            let email: any;
+            await jest.isolateModulesAsync(async () => {
+                email = (await import('../../src/server/settings')).EMAIL;
+            });
+            return email;
+        } finally {
+            process.env = saved;
+        }
+    };
+
+    it('sends over SMTP once SMTP_HOST is set, and prints to the console otherwise', async () => {
+        expect((await loadEmailSettings({ NODE_ENV: 'development', SMTP_HOST: 'smtp.example.com' })).TRANSPORT).toBe('smtp');
+        expect((await loadEmailSettings({ NODE_ENV: 'development' })).TRANSPORT).toBe('console');
+    });
+
+    it('always captures mail in memory under test, even with SMTP configured', async () => {
+        const email = await loadEmailSettings({ SMTP_HOST: 'smtp.example.com' });
+        expect(email.TRANSPORT).toBe('memory');
+    });
+
+    it('defaults SMTP_SECURE from the port, and an explicit value wins', async () => {
+        expect((await loadEmailSettings({ SMTP_PORT: '465' })).SMTP.SECURE).toBe(true);
+        expect((await loadEmailSettings({ SMTP_PORT: '587' })).SMTP.SECURE).toBe(false);
+        expect((await loadEmailSettings({ SMTP_PORT: '465', SMTP_SECURE: 'false' })).SMTP.SECURE).toBe(false);
     });
 });
 
