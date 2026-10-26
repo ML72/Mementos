@@ -13,7 +13,7 @@ const userService = new UserService();
 // @access public
 router.post('/', [
     check('fullName', 'Please enter your full name').not().isEmpty(),
-    check('email', 'Please enter a valid email').isEmail(),
+    check('email', 'Please enter a valid email').trim().isEmail().toLowerCase(),
     check('password', 'Password must be at least 6 characters long').isLength({ min: 6 })
 ], async (req: Request, res: Response) => {
     const errors = validationResult(req);
@@ -35,7 +35,9 @@ router.post('/', [
             return;
         }
 
-        res.json({ token: result.token });
+        // With verification on there is no token yet: the client sends the user to enter the
+        // code that was just emailed, and POST /api/auth/verify-email returns the token.
+        res.json(result.verificationRequired ? { verificationRequired: true } : { token: result.token });
     } catch(err: any) { 
         console.error(err.message);
         sendError(res, 500, 'Server Error - Please try again');

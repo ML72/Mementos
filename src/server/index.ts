@@ -4,6 +4,7 @@ import { connectDB, setupCSP, setupCORS, setupWwwRedirect } from './config';
 import { NODE_ENV, PORT, SECURITY_CSP, SECURITY_CORS_WHITELIST, WWW_REDIRECT_HOST } from './settings';
 
 import { authRoutes, usersRoutes, notesRoutes } from './routes';
+import { checkMailer } from './service';
 
 // Init app
 const app: Express = express();
@@ -17,10 +18,14 @@ setupWwwRedirect(app, WWW_REDIRECT_HOST);
 setupCSP(app, SECURITY_CSP);
 setupCORS(app, SECURITY_CORS_WHITELIST);
 
-// Initialize connections if not in test environment
+// Initialize connections if not in test environment. Each service logs one status line
+// (DATABASE: / EMAIL:), so one that is down or misconfigured shows up in the server log.
 if (NODE_ENV !== 'test') {
   // Connect to MongoDB
   connectDB();
+
+  // Check the SMTP login now rather than on the first sign-up
+  checkMailer();
 }
 
 // Lightweight health check (no auth, no DB dependency) for deployment probes

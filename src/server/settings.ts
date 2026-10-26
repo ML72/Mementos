@@ -95,4 +95,54 @@ const FEED: any = {
     RECENTLY_SEEN_CAP: 100
 };
 
-export { NODE_ENV, PORT, MONGO_URI, JWT_SECRET, SECURITY_CSP, SECURITY_CORS_WHITELIST, WWW_REDIRECT_HOST, CONTENT_LIMITS, REQUEST_CONSTRAINTS, FEED };
+// Email is sent over SMTP, which any provider supports, once SMTP_HOST is set. Without it each
+// message is printed to the console instead (`console`), so the app runs with no mail server.
+// Tests always use `memory`, which captures messages for assertions.
+type EmailTransport = 'smtp' | 'console' | 'memory';
+const pickEmailTransport = (): EmailTransport => {
+    // Checked first so no .env setting can make the test suite deliver real mail.
+    if (NODE_ENV === 'test') return 'memory';
+    return process.env.SMTP_HOST ? 'smtp' : 'console';
+};
+const parseBool = (value: string | undefined, fallback: boolean): boolean =>
+    value === undefined || value === '' ? fallback : ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
+
+const EMAIL: any = {
+    TRANSPORT: pickEmailTransport(),
+    FROM: process.env.EMAIL_FROM || 'Mementos <no-reply@mementos.localhost>',
+    // Origin used to build links inside emails. Must be set in production; the dev default is
+    // the Vite dev server, which proxies /api.
+    APP_URL: (process.env.APP_URL || 'http://localhost:5173').replace(/\/+$/, ''),
+    SMTP: {
+        HOST: process.env.SMTP_HOST || '',
+        PORT: SMTP_PORT,
+        // Implicit TLS (465) vs STARTTLS (587). Defaults from the port because a mismatch does
+        // not fail fast: every send stalls until nodemailer's greeting timeout.
+        SECURE: parseBool(process.env.SMTP_SECURE, SMTP_PORT === 465),
+        USER: process.env.SMTP_USER || '',
+        PASS: process.env.SMTP_PASS || ''
+    },
+    // HMAC secret for emailed one-time codes. A 6-digit code hashed with bcrypt is
+    // offline-crackable from a database dump (10^6 candidates); an HMAC is worthless without
+    // this secret, which lives in config rather than the database. Falls back to JWT_SECRET.
+    CODE_SECRET: process.env.EMAIL_CODE_SECRET || JWT_SECRET,
+    // Per-IP cap across the public code endpoints. The per-account counters below stop a flood
+    // aimed at one victim; this stops one client spraying many addresses.
+    CODE_IP_LIMIT: {
+        MAX_REQUESTS: parseInt(process.env.EMAIL_CODE_IP_MAX_REQUESTS || '20'),
+        WINDOW_MINUTES: 15
+    },
+    VERIFICATION: {
+        // When false, accounts can sign in without verifying (escape hatch if mail is down).
+        REQUIRED: parseBool(process.env.EMAIL_VERIFICATION_REQUIRED, true),
+        CODE_LENGTH: 6,             // mirrored in src/client/src/pages/public/VerifyEmail.tsx
+        EXPIRY_MINUTES: 30,         // mirrored there too
+        MAX_ATTEMPTS: 5,            // wrong guesses per code
+        RESEND_COOLDOWN_SECONDS: 60,
+        MAX_SENDS_PER_WINDOW: 5,
+        SEND_WINDOW_MINUTES: 60
+    }
+};
+
+export { NODE_ENV, PORT, MONGO_URI, JWT_SECRET, SECURITY_CSP, SECURITY_CORS_WHITELIST, WWW_REDIRECT_HOST, CONTENT_LIMITS, REQUEST_CONSTRAINTS, FEED, EMAIL };

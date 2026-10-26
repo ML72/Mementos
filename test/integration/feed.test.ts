@@ -2,6 +2,7 @@ import request from 'supertest';
 import mongoose from 'mongoose';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import app from '../../src/server/index';
+import { registerVerified } from '../helpers/auth';
 import { User, Note } from '../../src/server/models';
 
 const TEST_MONGO_URI = 'mongodb://127.0.0.1:27017/mementos_test_feed';
@@ -29,10 +30,7 @@ describe('Feed Algorithm Integration', () => {
 
     // --- helpers -----------------------------------------------------------
     const register = async (email: string) => {
-        const res = await request(app)
-            .post('/api/users')
-            .send({ email, password: 'password123', fullName: email.split('@')[0] });
-        return res.body.token as string;
+        return registerVerified(email, 'password123', email.split('@')[0]);
     };
     const idOf = async (email: string) => {
         const user = await User.findOne({ 'login.email': email });

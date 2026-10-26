@@ -11,10 +11,15 @@ const newUnsubscribeToken = (): string => randomBytes(32).toString('base64url');
 
 const UserSchema = new Schema({
     login: {
+        // Email is the identity key for login and for emailed codes, so it is stored normalized:
+        // Mongoose applies `lowercase`/`trim` on write and to query filters, which makes
+        // `Bob@Example.com` and `bob@example.com` the same account.
         email: {
             type: String,
             required: true,
             unique: true,
+            lowercase: true,
+            trim: true,
             maxlength: CONTENT_LIMITS.USER.EMAIL_MAX_LENGTH
         },
         password: {
@@ -34,6 +39,18 @@ const UserSchema = new Schema({
             type: Date,
             default: Date.now
         }
+    },
+    // Email-verification state, written by CodeService. Same shape as `passwordReset` below: an
+    // HMAC of the emailed code until `expiresAt`, `attempts` capping guesses against it, and
+    // `sendCount`/`sendWindowStartedAt`/`lastSentAt` capping issuance. `login.verified` is the
+    // outcome; this subtree is only the in-flight attempt.
+    emailVerification: {
+        codeHash: { type: String, default: null },
+        expiresAt: { type: Date, default: null },
+        attempts: { type: Number, default: 0 },
+        lastSentAt: { type: Date, default: null },
+        sendCount: { type: Number, default: 0 },
+        sendWindowStartedAt: { type: Date, default: null }
     },
     // Forgot-password state — reserved, nothing reads it yet. Only a hash of the emailed code
     // is stored, and only until `expiresAt`. Two counters cover two different abuses:
@@ -130,8 +147,9 @@ UserSchema.index(
 // filter scopes `unique` to documents that actually carry a token, so ones written before the
 // field existed can't collide with each other on a missing value.
 //
-// NOTE: never put a TTL index on `passwordReset.expiresAt` — TTL deletes the whole *document*,
-// which here is the user account. Expired reset state is cleared by writing nulls over it.
+// NOTE: never put a TTL index on `emailVerification.expiresAt` or `passwordReset.expiresAt` —
+// TTL deletes the whole *document*, which here is the user account. Expired code state is
+// cleared by writing nulls over it.
 UserSchema.index(
     { 'settings.email.unsubscribeToken': 1 },
     {

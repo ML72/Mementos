@@ -2,6 +2,7 @@ import request from 'supertest';
 import mongoose from 'mongoose';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import app from '../../src/server/index';
+import { registerVerified } from '../helpers/auth';
 import { User } from '../../src/server/models';
 
 const TEST_MONGO_URI = 'mongodb://127.0.0.1:27017/mementos_test_users';
@@ -27,10 +28,7 @@ describe('Users Endpoints Integration', () => {
     });
 
     const createUserAndGetToken = async (email: string, password: string = 'password123') => {
-        const res = await request(app)
-            .post('/api/users')
-            .send({ email, password, fullName: 'Test User' });
-        return { token: res.body.token, email };
+        return { token: await registerVerified(email, password), email };
     };
 
     const getUserIdFromEmail = async (email: string) => {

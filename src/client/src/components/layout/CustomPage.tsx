@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 import { createTheme, ThemeProvider } from "@mui/material/styles";
-import { Container, Box } from '@mui/material';
+import { Container, Box, GlobalStyles } from '@mui/material';
 
 import Alert from './Alert';
 import Navbar from './Navbar';
@@ -40,6 +40,8 @@ const CustomPage: React.FC<ComponentProps> = ({ useBindingContainer = true, show
 
   return (
     <ThemeProvider theme={theme}>
+      {/* Text outside a Typography (e.g. a bare Link, which inherits its font) would otherwise get the browser default */}
+      <GlobalStyles styles={{ body: { fontFamily: theme.typography.fontFamily } }} />
       {showNavigation && <Navbar />}
       <Container maxWidth={useBindingContainer ? "lg" : false} disableGutters={!useBindingContainer}>
         <Box sx={{ width: '100%' }}>

@@ -6,7 +6,7 @@ export function sendError(
 	res: Response,
 	status: number,
 	message: string | string[],
-	extra?: { is_token_invalid?: boolean } & object
+	extra?: { is_token_invalid?: boolean } & Record<string, unknown>
 ) {
 	// Always returns a JSON error response in a standard format:
 	// { errors: [{ msg }], is_token_invalid, ...extra }
