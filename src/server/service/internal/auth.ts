@@ -1,9 +1,11 @@
 import bcrypt from 'bcryptjs';
-import { sign } from 'jsonwebtoken';
+import mongoose from 'mongoose';
+import { sign, verify } from 'jsonwebtoken';
 import { User } from '../../models';
 import { EMAIL, JWT_SECRET } from '../../settings';
-import { renderVerificationEmail } from '../../config';
+import { renderPasswordResetEmail, renderVerificationEmail } from '../../config';
 import { getMailer } from '../external';
+import { JWTUser } from '../../../types/express';
 import CodeService, { IssueSkipReason } from './codes';
 
 export interface AuthenticateUserResult {
@@ -20,6 +22,17 @@ export interface GetUserResult {
     error?: string;
 }
 
+export interface VerifyTokenResult {
+    success: boolean;
+    user?: JWTUser;
+    /**
+     * The token itself is no good (bad signature, expired, password changed since), as opposed
+     * to the check failing on our side. Only this should sign the client out.
+     */
+    invalid?: boolean;
+    error?: string;
+}
+
 /**
  * `success` is always true — there is no failure the caller may reveal. `sent`/`reason` say what
  * actually happened, for tests and logs; they must never reach the HTTP response.
@@ -30,7 +43,21 @@ export interface SendVerificationResult {
     reason?: IssueSkipReason | 'no-user' | 'already-verified' | 'send-failed';
 }
 
+/** Same contract as SendVerificationResult. */
+export interface SendPasswordResetResult {
+    success: true;
+    sent: boolean;
+    reason?: IssueSkipReason | 'no-user' | 'send-failed';
+}
+
 export interface VerifyEmailResult {
+    success: boolean;
+    token?: string;
+    error?: string;
+}
+
+/** A reset or change signs the caller in with a fresh token and ends every other session. */
+export interface PasswordChangeResult {
     success: boolean;
     token?: string;
     error?: string;
@@ -38,38 +65,83 @@ export interface VerifyEmailResult {
 
 /** Same message for every failure so the response never narrates which check failed. */
 export const INVALID_VERIFICATION_CODE = 'Invalid or expired verification code';
+export const INVALID_RESET_CODE = 'Invalid or expired reset code';
 export const EMAIL_UNVERIFIED = 'Please verify your email address. We sent you a code.';
+export const WRONG_CURRENT_PASSWORD = 'Current password is incorrect';
 
 /** Trim + lowercase: the schema does the same on write and on query filters. */
 export const normalizeEmail = (email: string): string => String(email ?? '').trim().toLowerCase();
 
-export const signToken = (userId: string): string =>
-    sign({ user: { id: userId } }, JWT_SECRET, { expiresIn: 259200 }); // 3 days
+export const hashPassword = async (password: string): Promise<string> =>
+    bcrypt.hash(password, await bcrypt.genSalt(10));
+
+/** When the account's password was last set, in ms: the value tokens are bound to. */
+export const passwordChangedAtOf = (user: any): number =>
+    new Date(user.login.passwordChangedAt).getTime();
+
+/**
+ * Binds the token to the password it was issued under: verifyToken refuses it once
+ * `passwordChangedAt` moves, which is how a reset or change signs every other session out. An
+ * exact match rather than comparing against `iat`, which is in whole seconds: a token issued in
+ * the same second as a reset, or by a sign-in that checked the old password just before the
+ * reset landed, must still die.
+ */
+export const signToken = (userId: string, passwordChangedAt: number): string =>
+    sign({ user: { id: userId }, passwordChangedAt }, JWT_SECRET, { expiresIn: 259200 }); // 3 days
 
 class AuthService {
     private readonly codeService = new CodeService();
 
     async authenticateUser(email: string, password: string): Promise<AuthenticateUserResult> {
         try {
-            const user = await User.findOne({ 'login.email': normalizeEmail(email) });
+            const user = await User.findOne({ 'login.email': normalizeEmail(email) })
+                .select('login.password login.verified login.passwordChangedAt')
+                .lean() as any;
             if (!user) {
                 return { success: false, error: 'Invalid credentials' };
             }
 
-            const isMatch = await bcrypt.compare(password, (user as any).login.password);
+            const isMatch = await bcrypt.compare(password, user.login.password);
             if (!isMatch) {
                 return { success: false, error: 'Invalid credentials' };
             }
 
             // Only reached with the right password, so saying "unverified" reveals nothing new.
-            if (EMAIL.VERIFICATION.REQUIRED && !(user as any).login.verified) {
+            if (EMAIL.VERIFICATION.REQUIRED && !user.login.verified) {
                 await this.sendVerificationCode(email);
                 return { success: false, unverified: true, error: EMAIL_UNVERIFIED };
             }
 
-            return { success: true, token: signToken(user.id) };
+            // Bound to the password version read together with the hash just checked, so a reset
+            // that lands while bcrypt runs still revokes this token.
+            return { success: true, token: signToken(user._id.toString(), passwordChangedAtOf(user)) };
         } catch (error: any) {
             console.error('Authentication error:', error.message);
+            return { success: false, error: 'Server error' };
+        }
+    }
+
+    /**
+     * Check a session token: signature and expiry, then that the account still exists and its
+     * password hasn't changed since the token was issued. One point lookup per request.
+     */
+    async verifyToken(token: string): Promise<VerifyTokenResult> {
+        const invalid: VerifyTokenResult = { success: false, invalid: true, error: 'Token is not valid' };
+        let payload: any;
+        try {
+            payload = verify(token, JWT_SECRET);
+        } catch {
+            return invalid;
+        }
+        const userId = payload?.user?.id;
+        if (!mongoose.isValidObjectId(userId)) return invalid;
+
+        try {
+            const user = await User.findById(userId).select('login.passwordChangedAt').lean();
+            if (!user || payload.passwordChangedAt !== passwordChangedAtOf(user)) return invalid;
+            return { success: true, user: { id: userId } };
+        } catch (error: any) {
+            console.error('Verify token error:', error.message);
             return { success: false, error: 'Server error' };
         }
     }
@@ -131,9 +203,91 @@ class AuthService {
             if (!userId) {
                 return { success: false, error: INVALID_VERIFICATION_CODE };
             }
-            return { success: true, token: signToken(userId) };
+            const user = await User.findById(userId).select('login.passwordChangedAt').lean();
+            return { success: true, token: signToken(userId, passwordChangedAtOf(user)) };
         } catch (error: any) {
             console.error('Verify email error:', error.message);
+            return { success: false, error: 'Server error' };
+        }
+    }
+
+    /**
+     * Email a password reset code, with the same rate limits and the same never-fails contract as
+     * sendVerificationCode. Unverified accounts get one too: when someone registers with an
+     * address that isn't theirs, the reset is how the real owner takes the account over.
+     */
+    async sendPasswordResetCode(email: string): Promise<SendPasswordResetResult> {
+        try {
+            const user = await User.findOne({ 'login.email': normalizeEmail(email) })
+                .select('login.email passwordReset')
+                .lean() as any;
+            if (!user) return { success: true, sent: false, reason: 'no-user' };
+
+            const issued = await this.codeService.issue(user._id, 'passwordReset', user.passwordReset, EMAIL.PASSWORD_RESET);
+            if (!issued.code) return { success: true, sent: false, reason: issued.reason };
+
+            await getMailer().send(renderPasswordResetEmail({ to: user.login.email, code: issued.code }));
+            return { success: true, sent: true };
+        } catch (error: any) {
+            console.error('Send password reset code error:', error.message);
+            return { success: true, sent: false, reason: 'send-failed' };
+        }
+    }
+
+    /**
+     * Redeem a reset code and set a new password. Moving `passwordChangedAt` revokes every
+     * token already issued, so whoever else was signed in (a squatter included) is out. The code
+     * reached the address's inbox, which also proves the address: the account is verified, and
+     * a pending verification code is moot.
+     */
+    async resetPassword(email: string, code: string, password: string): Promise<PasswordChangeResult> {
+        try {
+            const changedAt = new Date();
+            const userId = await this.codeService.redeem(
+                normalizeEmail(email), 'passwordReset', code, EMAIL.PASSWORD_RESET,
+                async () => ({
+                    'login.password': await hashPassword(password),
+                    'login.passwordChangedAt': changedAt,
+                    'login.verified': true,
+                    'emailVerification.codeHash': null,
+                    'emailVerification.expiresAt': null,
+                    'emailVerification.attempts': 0
+                })
+            );
+            if (!userId) {
+                return { success: false, error: INVALID_RESET_CODE };
+            }
+            return { success: true, token: signToken(userId, changedAt.getTime()) };
+        } catch (error: any) {
+            console.error('Reset password error:', error.message);
+            return { success: false, error: 'Server error' };
+        }
+    }
+
+    /** Change the password of a signed-in user who knows the current one. */
+    async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<PasswordChangeResult> {
+        try {
+            const user = await User.findById(userId).select('login.password').lean() as any;
+            if (!user) {
+                return { success: false, error: 'User not found' };
+            }
+            if (!(await bcrypt.compare(currentPassword, user.login.password))) {
+                return { success: false, error: WRONG_CURRENT_PASSWORD };
+            }
+
+            // Conditional on the hash just checked: if a reset landed while bcrypt ran, this
+            // request proved knowledge of a password that no longer exists and must not undo it.
+            const changedAt = new Date();
+            const result = await User.updateOne(
+                { _id: user._id, 'login.password': user.login.password },
+                { $set: { 'login.password': await hashPassword(newPassword), 'login.passwordChangedAt': changedAt } }
+            );
+            if (result.modifiedCount === 0) {
+                return { success: false, error: 'Your password was just changed elsewhere. Please sign in again.' };
+            }
+            return { success: true, token: signToken(userId, changedAt.getTime()) };
+        } catch (error: any) {
+            console.error('Change password error:', error.message);
             return { success: false, error: 'Server error' };
         }
     }

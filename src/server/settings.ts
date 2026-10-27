@@ -108,12 +108,21 @@ const parseBool = (value: string | undefined, fallback: boolean): boolean =>
     value === undefined || value === '' ? fallback : ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
 
+// Origin used to build links inside emails: APP_URL when set, else the host visitors end up on —
+// the www one the apex redirects to (a one-click unsubscribe POST doesn't follow redirects), else
+// the host name Azure App Service gives the app. The dev default is the Vite dev server, which
+// proxies /api.
+const pickAppUrl = (): string => {
+    if (process.env.APP_URL) return process.env.APP_URL;
+    if (WWW_REDIRECT_HOST.trim()) return `https://www.${WWW_REDIRECT_HOST.trim().toLowerCase()}`;
+    if (process.env.WEBSITE_HOSTNAME) return `https://${process.env.WEBSITE_HOSTNAME}`;
+    return 'http://localhost:5173';
+};
+
 const EMAIL: any = {
     TRANSPORT: pickEmailTransport(),
     FROM: process.env.EMAIL_FROM || 'Mementos <no-reply@mementos.localhost>',
-    // Origin used to build links inside emails. Must be set in production; the dev default is
-    // the Vite dev server, which proxies /api.
-    APP_URL: (process.env.APP_URL || 'http://localhost:5173').replace(/\/+$/, ''),
+    APP_URL: pickAppUrl().replace(/\/+$/, ''),
     SMTP: {
         HOST: process.env.SMTP_HOST || '',
         PORT: SMTP_PORT,
@@ -142,6 +151,28 @@ const EMAIL: any = {
         RESEND_COOLDOWN_SECONDS: 60,
         MAX_SENDS_PER_WINDOW: 5,
         SEND_WINDOW_MINUTES: 60
+    },
+    PASSWORD_RESET: {
+        CODE_LENGTH: 6,             // mirrored in src/client/src/pages/public/ResetPassword.tsx
+        EXPIRY_MINUTES: 30,         // mirrored there too
+        MAX_ATTEMPTS: 5,            // wrong guesses per code
+        RESEND_COOLDOWN_SECONDS: 60,
+        MAX_SENDS_PER_WINDOW: 5,
+        SEND_WINDOW_MINUTES: 60
+    },
+    // Weekly digest, sent at 12AM UTC on each user's `settings.email.digestDay`.
+    DIGEST: {
+        // Off stops the scheduled job only; settings and unsubscribe links keep working.
+        ENABLED: parseBool(process.env.EMAIL_DIGEST_ENABLED, true),
+        NOTE_COUNT: 5,              // notes per digest, picked by the feed algorithm
+        // Never send a digest within this long of the previous one, so moving the digest day to
+        // a nearby day can't produce two emails a few days apart. Under a week, so a send that
+        // runs a little late one week doesn't push the next one back a week.
+        MIN_GAP_HOURS: 6 * 24,
+        // Pause between recipients, to stay under the mail provider's rate limit (Resend's
+        // default is 2 requests/second, shared with verification and reset codes).
+        THROTTLE_MS: parseInt(process.env.EMAIL_DIGEST_THROTTLE_MS || '500'),
+        BATCH_SIZE: 100             // users fetched per query while working through a run
     }
 };
 

@@ -10,6 +10,8 @@ import { initializeAuth } from './service/auth';
 import Landing from './pages/public/Landing';
 import Login from './pages/public/Login';
 import VerifyEmail from './pages/public/VerifyEmail';
+import ForgotPassword from './pages/public/ForgotPassword';
+import ResetPassword from './pages/public/ResetPassword';
 import About from './pages/public/About';
 import HomePage from './pages/private/HomePage';
 import PeoplePage from './pages/private/PeoplePage';
@@ -55,6 +57,23 @@ const App: React.FC = () => {
           element={
             <PublicPage>
               <VerifyEmail />
+            </PublicPage>
+          }
+        />
+        {/* Open when signed in too: Settings links here for a forgotten current password */}
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicPage restrictAuthenticated={false}>
+              <ForgotPassword />
+            </PublicPage>
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={
+            <PublicPage restrictAuthenticated={false}>
+              <ResetPassword />
             </PublicPage>
           }
         />

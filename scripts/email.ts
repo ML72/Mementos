@@ -12,12 +12,39 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { pathToFileURL } from 'url';
-import { renderVerificationEmail } from '../src/server/config/mail_templates';
+import { renderDigestEmail, renderPasswordResetEmail, renderVerificationEmail } from '../src/server/config/mail_templates';
 import { getMailer, SendFailure, SmtpMailer } from '../src/server/service/external/mailer';
 import type { OutgoingMail } from '../src/server/service/external/mailer';
 
 const SAMPLES: Record<string, (to: string) => OutgoingMail> = {
-    verification: to => renderVerificationEmail({ to, fullName: 'Ada Lovelace', code: '012345' })
+    verification: to => renderVerificationEmail({ to, fullName: 'Ada Lovelace', code: '012345' }),
+    passwordReset: to => renderPasswordResetEmail({ to, code: '987654' }),
+    digest: to => renderDigestEmail({
+        to,
+        fullName: 'Ada Lovelace',
+        unsubscribeToken: 'sample-unsubscribe-token-not-a-real-one',
+        notes: [
+            {
+                subject: 'The Analytical Engine weaves algebraic patterns',
+                content: '# Notes on the Engine\nIt weaves **algebraic patterns** just as the Jacquard loom weaves flowers and leaves. ' +
+                    'The engine might act upon other things besides number, were objects found whose mutual fundamental relations could be expressed by those of the abstract science of operations.',
+                tags: ['computing', 'history'],
+                authorName: null
+            },
+            {
+                subject: 'Bernoulli numbers, step by step',
+                content: 'Note G: a sequence of operations for computing $B_7$ on the engine.',
+                tags: ['math'],
+                authorName: 'Charles Babbage'
+            },
+            {
+                subject: 'Imagination is the discovering faculty',
+                content: 'It is that which penetrates into the unseen worlds around us.',
+                tags: [],
+                authorName: 'Mary Somerville'
+            }
+        ]
+    })
 };
 
 // Outside the repo, so previews never show up in git; re-running overwrites them in place.

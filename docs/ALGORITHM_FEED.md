@@ -238,6 +238,15 @@ defensively).
 > so it can later move to an explicit `POST .../seen` impressions endpoint (scroll‑based) without
 > touching the ranking logic.
 
+### Previews (the weekly digest)
+
+`FeedService.previewFeed(userId, limit)` runs the same three stages (`computePage`) and returns
+the page `getFeed` would serve right now, but **records nothing**: no review state advances and
+nothing joins the seen‑ring. The weekly digest email uses it for its "notes to review", since its
+reader may never open the app — counting those notes as reviewed would push them out of both the
+review schedule and the feed. The flip side is that a user who never opens the app sees much the
+same notes in consecutive digests, which is accurate: they are still due.
+
 ---
 
 ## Storage & compute

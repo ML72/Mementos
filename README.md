@@ -60,13 +60,15 @@ This repository contains the code for Mementos API endpoints and web app fronten
 
 2. You can use [Postman](https://www.postman.com/downloads/) to send requests to the server.
 
-**Email verification:**
+**Email:**
 
-New accounts must enter an emailed code before they can sign in. No mail server is needed
-locally: without SMTP settings every email is printed to the server console, so read the code
-from the terminal running `npm run dev`. The seeded users are already verified. To see the HTML
-version of the emails, run `npm run email:preview`. Sending real email over SMTP locally is covered
-in [docs/ENVIRONMENT_OVERVIEW.md](docs/ENVIRONMENT_OVERVIEW.md#testing-locally).
+New accounts must enter an emailed code before they can sign in, and "Forgot password?" emails a
+reset code. No mail server is needed locally: without SMTP settings every email is printed to the
+server console, so read the code from the terminal running `npm run dev`. The seeded users are
+already verified. Weekly digests are printed there too, at 12AM UTC on each user's digest day
+(see [docs/ENVIRONMENT_OVERVIEW.md](docs/ENVIRONMENT_OVERVIEW.md#weekly-digest) to trigger one).
+To see the HTML version of the emails, run `npm run email:preview`. Sending real email over SMTP
+locally is covered in [docs/ENVIRONMENT_OVERVIEW.md](docs/ENVIRONMENT_OVERVIEW.md#testing-locally).
 
 ## Updating Packages
 
