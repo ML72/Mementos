@@ -33,7 +33,7 @@ Set the following environment variables in your Azure App Service:
 - `PORT` - Port number (Azure sets this automatically, usually 8080 or 80)
 - `SECURITY_CSP` - Custom Content Security Policy (has sensible defaults)
 - `SECURITY_CORS_WHITELIST` - CORS whitelist (empty in production for same-origin only)
-- `WWW_REDIRECT_HOST` - Apex domain to 301-redirect to its `www` subdomain (ex. Send `mementos.info/x` to `www.mementos.info/x`); leave unset to disable
+- `WWW_REDIRECT_HOST` - Apex domain to 301-redirect to its `www` subdomain (ex. Send `mementos.info/x` to `www.mementos.info/x`); leave unset to disable. Links in emails go to the `www` host too (without it, to the `*.azurewebsites.net` host; `APP_URL` overrides either)
 
 ## Custom Domain & www Redirect
 
@@ -108,7 +108,7 @@ npm run install:all && npm run build
 ## Post-Deployment Verification
 
 1. Check that environment variables are set correctly
-2. Verify the MongoDB and SMTP connections: the application log shows `DATABASE: connected to MongoDB at …` and `EMAIL: SMTP connection verified` at each start, or the reason either failed
+2. Verify the MongoDB and SMTP connections: the application log shows `DATABASE: connected to MongoDB at …` and `EMAIL: SMTP connection verified, links in emails go to https://www.…` at each start, or the reason either failed, followed by `DIGEST: weekly digests on, …` once the database is up
 3. Test the health endpoint: `https://your-app.azurewebsites.net/api/health` (returns `{"status":"ok"}`)
 4. Test frontend: `https://your-app.azurewebsites.net`
 5. Check application logs in Azure Portal

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { setAuth, clearAuth } from '../store/slices/auth';
+import { setAuth, clearAuth, updateToken } from '../store/slices/auth';
 import { setNewAlert, setApiErrorAlert } from './alert';
 // The axios request/response interceptors live in ./interceptors.ts and are installed in main.tsx.
 
@@ -16,9 +16,12 @@ const removeAuthHeader = () => {
 // What a sign-in attempt can lead to: a session, nothing, or the code-entry page.
 export type SignInOutcome = 'signed-in' | 'needs-verification' | 'failed';
 
-// Shared tail of login, registration and verification: load the profile for a fresh token and
-// put the session in the store (redux-persist handles persistence).
+// Shared tail of login, registration, verification and password reset: load the profile for a
+// fresh token and put the session in the store (redux-persist handles persistence).
 const completeSignIn = async (dispatch: any, token: string) => {
+  // Store the token first: the request interceptor stamps the store's token on every request,
+  // and a password reset made while signed in has just revoked the old one.
+  dispatch(updateToken(token));
   const userRes = await axios.get('/api/auth', {
     headers: { 'x-auth-token': token }
   });
@@ -125,6 +128,51 @@ export const resendVerification = async (dispatch: any, email: string): Promise<
     return true;
   } catch (err: any) {
     setApiErrorAlert(dispatch, err, 'Could not send a new code. Please try again.');
+    return false;
+  }
+};
+
+// Ask for a password reset code. The API answers the same way whatever the address is.
+export const forgotPassword = async (dispatch: any, email: string): Promise<boolean> => {
+  try {
+    const res = await axios.post('/api/auth/forgot-password', { email });
+    setNewAlert(dispatch, { msg: res.data?.msg || 'A reset code has been sent.', alertType: 'success' });
+    return true;
+  } catch (err: any) {
+    setApiErrorAlert(dispatch, err, 'Could not send a reset code. Please try again.');
+    return false;
+  }
+};
+
+// Redeem a reset code and set a new password. Signs in, and signs every other session out.
+export const resetPassword = async (
+  dispatch: any,
+  { email, code, password }: { email: string; code: string; password: string }
+): Promise<boolean> => {
+  try {
+    const res = await axios.post('/api/auth/reset-password', { email, code, password });
+    await completeSignIn(dispatch, res.data.token);
+    setNewAlert(dispatch, { msg: 'Password reset. You are signed in, and signed out everywhere else.', alertType: 'success' });
+    return true;
+  } catch (err: any) {
+    setApiErrorAlert(dispatch, err, 'Could not reset your password. Please try again.');
+    return false;
+  }
+};
+
+// Change the signed-in user's password. The API revokes every session's token, this one's
+// included, and returns a fresh token for this session.
+export const changePassword = async (
+  dispatch: any,
+  { currentPassword, newPassword }: { currentPassword: string; newPassword: string }
+): Promise<boolean> => {
+  try {
+    const res = await axios.post('/api/auth/change-password', { currentPassword, newPassword });
+    dispatch(updateToken(res.data.token));
+    setNewAlert(dispatch, { msg: 'Password changed. Your other sessions have been signed out.', alertType: 'success' });
+    return true;
+  } catch (err: any) {
+    setApiErrorAlert(dispatch, err, 'Could not change your password. Please try again.');
     return false;
   }
 };

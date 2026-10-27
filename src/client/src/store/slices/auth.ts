@@ -49,9 +49,13 @@ export const authSlice = createSlice({
     },
     updateEmail: (state, action: PayloadAction<string>) => {
       state.email = action.payload;
+    },
+    // A password change or reset revokes the old token and hands out a new one.
+    updateToken: (state, action: PayloadAction<string>) => {
+      state.token = action.payload;
     }
   }
 });
 
-export const { setAuth, clearAuth, updateEmail } = authSlice.actions;
+export const { setAuth, clearAuth, updateEmail, updateToken } = authSlice.actions;
 export default authSlice.reducer;

@@ -1,16 +1,22 @@
-export { AuthService, UserService, NotesService, FeedService, CodeService } from './internal';
-export { INVALID_VERIFICATION_CODE, EMAIL_UNVERIFIED } from './internal';
+export { AuthService, UserService, NotesService, FeedService, CodeService, DigestService, startDigestScheduler } from './internal';
+export { INVALID_VERIFICATION_CODE, INVALID_RESET_CODE, EMAIL_UNVERIFIED, WRONG_CURRENT_PASSWORD } from './internal';
 export type {
     AuthenticateUserResult,
     GetUserResult,
+    VerifyTokenResult,
     SendVerificationResult,
+    SendPasswordResetResult,
     VerifyEmailResult,
+    PasswordChangeResult,
     CreateUserData,
     CreateUserResult,
+    EmailSettings,
+    SettingsResult,
     CreateNoteData,
     UpdateNoteData,
     NoteResult,
-    FeedResult
+    FeedResult,
+    DigestRunResult
 } from './internal';
 export { getMailer, setMailer, checkMailer, classifySmtpError, SendFailure, MemoryMailer, ConsoleMailer, SmtpMailer } from './external';
 export type { Mailer, OutgoingMail, SendFailureKind } from './external';

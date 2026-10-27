@@ -182,6 +182,13 @@ export function ensureFeedMaps(user: any): void {
 // FeedService
 // ---------------------------------------------------------------------------
 
+interface ComputedPage {
+    page: any[];
+    hasMore: boolean;
+    recentlySeen: any[];
+    nowMs: number;
+}
+
 class FeedService {
     /**
      * Build a personalized page of the feed and record what was served.
@@ -194,55 +201,85 @@ class FeedService {
      */
     async getFeed(userId: string, limit: number): Promise<FeedResult> {
         try {
-            const user = await User.findById(userId).select('following feed');
-            if (!user) {
+            const computed = await this.computePage(userId, limit);
+            if (!computed) {
                 return { success: false, error: 'User not found' };
             }
-
-            const nowMs = Date.now();
-            const tagAffinity: Map<string, number> = (user.feed?.tagAffinity as any) ?? new Map();
-            const authorAffinity: Map<string, number> = (user.feed?.authorAffinity as any) ?? new Map();
-            const recentlySeen: any[] = (user.feed?.recentlySeen as any[]) ?? [];
-            const followingIds: any[] = user.following ?? [];
-            const followingSet = new Set(followingIds.map(id => id.toString()));
-
-            // recentlySeen is ordered most-recent-first; map id -> ring age (0 = most recent).
-            const seenIndex = new Map<string, number>();
-            recentlySeen.forEach((id, i) => seenIndex.set(id.toString(), i));
-
-            // --- Stage 1: candidate generation (bounded + index-backed) ---
-            const selfPool = await Note.find({ creator: userId })
-                .sort({ 'review.nextDueAt': 1 })
-                .limit(FEED.CANDIDATE_POOL);
-
-            const otherPool = followingIds.length
-                ? await Note.find({ creator: { $in: followingIds } })
-                    .sort({ dateCreated: -1 })
-                    .limit(FEED.CANDIDATE_POOL)
-                : [];
-
-            // --- Stage 2: ranking (prefer unseen; reuse least-recently-seen as fallback) ---
-            const selfRanked = this.rankTrack(selfPool, note => scoreSelf(note, nowMs), seenIndex);
-            const otherRanked = this.rankTrack(
-                otherPool,
-                note => scoreOther(note, nowMs, tagAffinity, authorAffinity, followingSet),
-                seenIndex
-            );
-
-            // --- Stage 3: blend under the self-review floor ---
-            const enforceSelfFloor = selfPool.length >= FEED.MIN_NOTES_FOR_SELF_QUOTA;
-            const page = blend(selfRanked, otherRanked, limit, enforceSelfFloor);
+            const { page, hasMore, recentlySeen, nowMs } = computed;
 
             // Record impressions, then populate creators for just the served page.
             await this.recordServed(userId, page, recentlySeen, nowMs);
             await Note.populate(page, { path: 'creator', select: 'login.email profile.fullName' });
 
-            const hasMore = (selfRanked.length + otherRanked.length) > page.length;
             return { success: true, notes: page, hasMore };
         } catch (error: any) {
             console.error('Get feed error:', error.message);
             return { success: false, error: 'Server error' };
         }
+    }
+
+    /**
+     * The page getFeed would serve right now, without recording it: neither the seen-ring nor
+     * any note's review schedule moves. For the weekly digest, whose reader may never open the
+     * app — counting its notes as reviewed would push them out of both the feed and review.
+     */
+    async previewFeed(userId: string, limit: number): Promise<FeedResult> {
+        try {
+            const computed = await this.computePage(userId, limit);
+            if (!computed) {
+                return { success: false, error: 'User not found' };
+            }
+            await Note.populate(computed.page, { path: 'creator', select: 'profile.fullName' });
+            return { success: true, notes: computed.page, hasMore: computed.hasMore };
+        } catch (error: any) {
+            console.error('Preview feed error:', error.message);
+            return { success: false, error: 'Server error' };
+        }
+    }
+
+    /** Stages 1-3 of getFeed; null when the user doesn't exist. Writes nothing. */
+    private async computePage(userId: string, limit: number): Promise<ComputedPage | null> {
+        const user = await User.findById(userId).select('following feed');
+        if (!user) {
+            return null;
+        }
+
+        const nowMs = Date.now();
+        const tagAffinity: Map<string, number> = (user.feed?.tagAffinity as any) ?? new Map();
+        const authorAffinity: Map<string, number> = (user.feed?.authorAffinity as any) ?? new Map();
+        const recentlySeen: any[] = (user.feed?.recentlySeen as any[]) ?? [];
+        const followingIds: any[] = user.following ?? [];
+        const followingSet = new Set(followingIds.map(id => id.toString()));
+
+        // recentlySeen is ordered most-recent-first; map id -> ring age (0 = most recent).
+        const seenIndex = new Map<string, number>();
+        recentlySeen.forEach((id, i) => seenIndex.set(id.toString(), i));
+
+        // --- Stage 1: candidate generation (bounded + index-backed) ---
+        const selfPool = await Note.find({ creator: userId })
+            .sort({ 'review.nextDueAt': 1 })
+            .limit(FEED.CANDIDATE_POOL);
+
+        const otherPool = followingIds.length
+            ? await Note.find({ creator: { $in: followingIds } })
+                .sort({ dateCreated: -1 })
+                .limit(FEED.CANDIDATE_POOL)
+            : [];
+
+        // --- Stage 2: ranking (prefer unseen; reuse least-recently-seen as fallback) ---
+        const selfRanked = this.rankTrack(selfPool, note => scoreSelf(note, nowMs), seenIndex);
+        const otherRanked = this.rankTrack(
+            otherPool,
+            note => scoreOther(note, nowMs, tagAffinity, authorAffinity, followingSet),
+            seenIndex
+        );
+
+        // --- Stage 3: blend under the self-review floor ---
+        const enforceSelfFloor = selfPool.length >= FEED.MIN_NOTES_FOR_SELF_QUOTA;
+        const page = blend(selfRanked, otherRanked, limit, enforceSelfFloor);
+
+        const hasMore = (selfRanked.length + otherRanked.length) > page.length;
+        return { page, hasMore, recentlySeen, nowMs };
     }
 
     /**

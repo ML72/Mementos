@@ -1,7 +1,7 @@
-import bcrypt from 'bcryptjs';
 import { User } from '../../models';
 import { EMAIL } from '../../settings';
-import AuthService, { normalizeEmail, signToken } from './auth';
+import AuthService, { hashPassword, normalizeEmail, passwordChangedAtOf, signToken } from './auth';
+import { nextDigestAt } from './digest';
 
 export interface CreateUserData {
     email: string;
@@ -22,6 +22,29 @@ export interface ToggleFollowResult {
     error?: string;
 }
 
+/** What GET/PUT /api/users/settings expose — an explicit whitelist of `settings.email`. */
+export interface EmailSettings {
+    weeklyDigest: boolean;
+    /** 0 = Sunday ... 6 = Saturday; the digest goes out at 12AM UTC that day. */
+    digestDay: number;
+    /** When the next digest is due, or null while digests are off. */
+    nextDigestAt: Date | null;
+}
+
+export interface SettingsResult {
+    success: boolean;
+    settings?: EmailSettings;
+    error?: string;
+}
+
+export interface UpdateSettingsData {
+    weeklyDigest?: boolean;
+    digestDay?: number;
+}
+
+const SETTINGS_FIELDS =
+    'settings.email.weeklyDigest settings.email.digestDay settings.email.nextDigestAt settings.email.lastDigestSentAt';
+
 class UserService {
     private readonly authService = new AuthService();
 
@@ -34,14 +57,11 @@ class UserService {
                 return { success: false, error: 'User already exists' };
             }
 
-            const salt = await bcrypt.genSalt(10);
-            const hashedPassword = await bcrypt.hash(password, salt);
-
             user = new User({
                 profile: { fullName },
                 login: {
                     email,
-                    password: hashedPassword,
+                    password: await hashPassword(password),
                     verified: false
                 },
                 roles: ['USER']
@@ -56,9 +76,82 @@ class UserService {
                 return { success: true, verificationRequired: true };
             }
 
-            return { success: true, token: signToken(user.id) };
+            return { success: true, token: signToken(user.id, passwordChangedAtOf(user)) };
         } catch (error: any) {
             console.error('Registration error:', error.message);
+            return { success: false, error: 'Server error' };
+        }
+    }
+
+    async getSettings(userId: string): Promise<SettingsResult> {
+        try {
+            const user = await User.findById(userId).select(SETTINGS_FIELDS).lean() as any;
+            if (!user) {
+                return { success: false, error: 'User not found' };
+            }
+            const email = user.settings.email;
+            // Until the digest job first schedules the account, show the slot it will pick.
+            const next = email.weeklyDigest
+                ? (email.nextDigestAt ?? nextDigestAt(email.digestDay, new Date(), email.lastDigestSentAt))
+                : null;
+            return { success: true, settings: { weeklyDigest: email.weeklyDigest, digestDay: email.digestDay, nextDigestAt: next } };
+        } catch (error: any) {
+            console.error('Get settings error:', error.message);
+            return { success: false, error: 'Server error' };
+        }
+    }
+
+    /**
+     * Change the digest switch and/or day. The next slot only moves when the schedule does (a
+     * new day, or digests coming back on), and is then placed by the same gap rule the job
+     * uses, measured from the last digest actually sent.
+     */
+    async updateSettings(userId: string, changes: UpdateSettingsData): Promise<SettingsResult> {
+        try {
+            const user = await User.findById(userId).select(SETTINGS_FIELDS).lean() as any;
+            if (!user) {
+                return { success: false, error: 'User not found' };
+            }
+            const email = user.settings.email;
+            const wasOn: boolean = email.weeklyDigest;
+            const currentDay: number = email.digestDay;
+            const weeklyDigest = changes.weeklyDigest ?? wasOn;
+            const digestDay = changes.digestDay ?? currentDay;
+
+            let next: Date | null = email.nextDigestAt;
+            if (!weeklyDigest) {
+                next = null;
+            } else if (!wasOn || digestDay !== currentDay || next === null) {
+                next = nextDigestAt(digestDay, new Date(), email.lastDigestSentAt);
+            }
+
+            await User.updateOne({ _id: user._id }, {
+                $set: {
+                    'settings.email.weeklyDigest': weeklyDigest,
+                    'settings.email.digestDay': digestDay,
+                    'settings.email.nextDigestAt': next
+                }
+            });
+            return { success: true, settings: { weeklyDigest, digestDay, nextDigestAt: next } };
+        } catch (error: any) {
+            console.error('Update settings error:', error.message);
+            return { success: false, error: 'Server error' };
+        }
+    }
+
+    /**
+     * Turn the digest off for whoever holds this unsubscribe token. Consent only: delivery
+     * health is untouched. Succeeds whether or not the token matched anyone.
+     */
+    async unsubscribe(token: string): Promise<{ success: boolean; error?: string }> {
+        try {
+            await User.updateOne(
+                { 'settings.email.unsubscribeToken': token },
+                { $set: { 'settings.email.weeklyDigest': false, 'settings.email.nextDigestAt': null } }
+            );
+            return { success: true };
+        } catch (error: any) {
+            console.error('Unsubscribe error:', error.message);
             return { success: false, error: 'Server error' };
         }
     }

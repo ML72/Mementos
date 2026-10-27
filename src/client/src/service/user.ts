@@ -22,6 +22,28 @@ export const updateProfile = async (dispatch: any, data: { fullName?: string; bi
   }
 };
 
+// The weekly digest settings: { weeklyDigest, digestDay (0 = Sunday), nextDigestAt (ISO or null) }
+export const getSettings = async (dispatch: any) => {
+  try {
+    const res = await axios.get('/api/users/settings');
+    return res.data;
+  } catch (err: any) {
+    setApiErrorAlert(dispatch, err, 'Could not fetch settings');
+    return null;
+  }
+};
+
+export const updateSettings = async (dispatch: any, data: { weeklyDigest?: boolean; digestDay?: number }) => {
+  try {
+    const res = await axios.put('/api/users/settings', data);
+    setNewAlert(dispatch, { msg: 'Digest settings saved', alertType: 'success' });
+    return res.data;
+  } catch (err: any) {
+    setApiErrorAlert(dispatch, err, 'Could not save settings');
+    return null;
+  }
+};
+
 export const followUser = async (dispatch: any, userId: string) => {
   try {
     const res = await axios.post(`/api/users/${userId}/follow`);

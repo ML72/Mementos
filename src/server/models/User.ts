@@ -32,9 +32,10 @@ const UserSchema = new Schema({
             type: Boolean,
             default: false
         },
-        // JWTs are stateless, so a password reset can't revoke tokens already issued —
-        // comparing a token's `iat` against this is what signs other sessions out. Defaults to
-        // account creation so the comparison never has to handle a missing date.
+        // JWTs are stateless, so a password reset can't revoke tokens already issued — each
+        // token is bound to this value instead (see signToken), and moving it on a reset or
+        // change is what signs other sessions out. Defaults to account creation so it is never
+        // missing.
         passwordChangedAt: {
             type: Date,
             default: Date.now
@@ -52,7 +53,7 @@ const UserSchema = new Schema({
         sendCount: { type: Number, default: 0 },
         sendWindowStartedAt: { type: Date, default: null }
     },
-    // Forgot-password state — reserved, nothing reads it yet. Only a hash of the emailed code
+    // Password-reset state, written by CodeService. Only a hash of the emailed code
     // is stored, and only until `expiresAt`. Two counters cover two different abuses:
     // `attempts` caps guesses against a live code (the space is only 10^6), while
     // `sendCount`/`sendWindowStartedAt`/`lastSentAt` cap issuance so the endpoint can't be
@@ -105,8 +106,7 @@ const UserSchema = new Schema({
     // User-controlled preferences, namespaced by concern so non-email settings (theme,
     // locale) can be added without reshaping what is here.
     settings: {
-        // Reserved, nothing reads it yet. Three groups a bulk send has to satisfy: consent,
-        // deliverability, and what was last sent.
+        // Three groups the weekly digest has to satisfy: consent, deliverability, and schedule.
         email: {
             // Explicit `true` rather than an absent field, so the digest query is a plain
             // equality match and not "anything that isn't false".
@@ -116,7 +116,8 @@ const UserSchema = new Schema({
 
             // Whether the address is still safe to send to. Mailing one that hard-bounces or
             // reports spam wrecks the sending domain's reputation, so bulk jobs have to filter
-            // on this as well as on consent. Written by a bounce/complaint handler.
+            // on this as well as on consent. The digest reads it; reserved for a bounce/complaint
+            // handler to write.
             deliveryStatus: {
                 type: String,
                 enum: ['active', 'bounced', 'complained', 'suppressed'],
@@ -125,8 +126,21 @@ const UserSchema = new Schema({
             bounceCount: { type: Number, default: 0 },   // consecutive soft bounces
             lastBounceAt: { type: Date, default: null },
 
-            // Last digest send, which makes a run resumable and idempotent: a crashed job, a
-            // double-firing cron, or a second app instance can re-run without mailing twice.
+            // The digest goes out at 12AM UTC on `digestDay` (0 = Sunday, as Date#getUTCDay).
+            // It defaults to the weekday the account is created on, which spreads sends across
+            // the week.
+            digestDay: {
+                type: Number,
+                min: 0,
+                max: 6,
+                default: () => new Date().getUTCDay()
+            },
+            // The next slot (12AM UTC on `digestDay`), denormalized so the job finds due users
+            // with one index range scan, like Note.review.nextDueAt. Null while digests are off,
+            // and until the job first schedules the account.
+            nextDigestAt: { type: Date, default: null },
+            // Last digest send. A send claims it together with `nextDigestAt` in one conditional
+            // write, so a double-firing job or a second app instance never mails twice.
             lastDigestSentAt: { type: Date, default: null }
         }
     },
@@ -157,6 +171,9 @@ UserSchema.index(
         partialFilterExpression: { 'settings.email.unsubscribeToken': { $type: 'string' } }
     }
 );
+
+// The digest job's "whose slot has passed?" query.
+UserSchema.index({ 'settings.email.nextDigestAt': 1 });
 
 const User = model('User', UserSchema);
 export default User;

@@ -1,15 +1,10 @@
-import jwt from 'jsonwebtoken';
-import { JWT_SECRET } from '../settings';
 import { NextFunction, Request, Response } from 'express';
-import { JWTUser } from '../../types/express';
+import { AuthService } from '../service';
 import { sendError } from '../util';
 
-// Define the JWT payload structure
-interface JWTPayload {
-    user: JWTUser;
-}
+const authService = new AuthService();
 
-const privateAccess = (req: Request, res: Response, next: NextFunction): void => {
+const privateAccess = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     // Get token from header
     const token = req.header('x-auth-token');
 
@@ -19,15 +14,20 @@ const privateAccess = (req: Request, res: Response, next: NextFunction): void =>
         return;
     }
 
-    // Verify token
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
-        req.user = decoded.user;
-        next();
-    } catch {
-        sendError(res, 401, 'Token is not valid', { is_token_invalid: true });
+    // Verify token, including that the password hasn't changed since it was issued
+    const result = await authService.verifyToken(token);
+    if (!result.success) {
+        // Only a bad token may sign the client out; a failed lookup on our side must not.
+        if (result.invalid) {
+            sendError(res, 401, result.error || 'Token is not valid', { is_token_invalid: true });
+        } else {
+            sendError(res, 500, 'Server Error - Please try again');
+        }
         return;
     }
+
+    req.user = result.user;
+    next();
 }
 
 export { privateAccess };

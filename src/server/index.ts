@@ -3,8 +3,8 @@ import path from 'path';
 import { connectDB, setupCSP, setupCORS, setupWwwRedirect } from './config';
 import { NODE_ENV, PORT, SECURITY_CSP, SECURITY_CORS_WHITELIST, WWW_REDIRECT_HOST } from './settings';
 
-import { authRoutes, usersRoutes, notesRoutes } from './routes';
-import { checkMailer } from './service';
+import { authRoutes, usersRoutes, notesRoutes, emailRoutes } from './routes';
+import { checkMailer, startDigestScheduler } from './service';
 
 // Init app
 const app: Express = express();
@@ -19,10 +19,10 @@ setupCSP(app, SECURITY_CSP);
 setupCORS(app, SECURITY_CORS_WHITELIST);
 
 // Initialize connections if not in test environment. Each service logs one status line
-// (DATABASE: / EMAIL:), so one that is down or misconfigured shows up in the server log.
+// (DATABASE: / EMAIL: / DIGEST:), so one that is down or misconfigured shows up in the server log.
 if (NODE_ENV !== 'test') {
-  // Connect to MongoDB
-  connectDB();
+  // Connect to MongoDB, then start the weekly digest job, which needs it
+  connectDB().then(startDigestScheduler);
 
   // Check the SMTP login now rather than on the first sign-up
   checkMailer();
@@ -37,6 +37,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/notes', notesRoutes);
+app.use('/api/email', emailRoutes);
 
 // Serve static assets in production
 if (NODE_ENV === 'production') {

@@ -54,6 +54,8 @@
         "deliveryStatus": "active",
         "bounceCount": 0,
         "lastBounceAt": null,
+        "digestDay": 3,
+        "nextDigestAt": null,
         "lastDigestSentAt": null
       }
     },
@@ -111,6 +113,8 @@
         "deliveryStatus": "active",
         "bounceCount": 0,
         "lastBounceAt": null,
+        "digestDay": 1,
+        "nextDigestAt": null,
         "lastDigestSentAt": null
       }
     },
@@ -177,6 +181,8 @@
         "deliveryStatus": "active",
         "bounceCount": 0,
         "lastBounceAt": null,
+        "digestDay": 1,
+        "nextDigestAt": null,
         "lastDigestSentAt": null
       }
     },
@@ -234,6 +240,8 @@
         "deliveryStatus": "active",
         "bounceCount": 0,
         "lastBounceAt": null,
+        "digestDay": 3,
+        "nextDigestAt": null,
         "lastDigestSentAt": null
       }
     },

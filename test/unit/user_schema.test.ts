@@ -2,11 +2,11 @@ import { describe, it, expect } from '@jest/globals';
 import { User } from '../../src/server/models';
 
 // Pure schema test — Mongoose applies defaults when a document is constructed, so this needs
-// no database. It pins the promise the User schema makes: every account carries the reserved
-// email-feature fields from the moment it is created, so the feature can be written against
-// them later without guarding each read with a "does this field exist yet?" check.
+// no database. It pins the promise the User schema makes: every account carries the
+// email-feature fields from the moment it is created, so features can be written against them
+// without guarding each read with a "does this field exist yet?" check.
 
-describe('User schema — reserved email-feature defaults', () => {
+describe('User schema — email-feature defaults', () => {
     const build = () => new User({
         profile: { fullName: 'Test User' },
         login: { email: 'schema.test@example.com', password: 'a-bcrypt-hash' },
@@ -15,6 +15,18 @@ describe('User schema — reserved email-feature defaults', () => {
 
     it('stamps login.passwordChangedAt so token invalidation never sees a missing date', () => {
         expect(build().login.passwordChangedAt).toBeInstanceOf(Date);
+    });
+
+    it('puts the digest on the weekday (UTC) the account is created on, unscheduled', () => {
+        const user = build();
+        expect(user.settings.email.digestDay).toBe(new Date().getUTCDay());
+        expect(user.settings.email.nextDigestAt).toBeNull();
+    });
+
+    it('rejects a digest day outside Sunday (0) to Saturday (6)', () => {
+        const user = build();
+        user.settings.email.digestDay = 7;
+        expect(user.validateSync()?.errors['settings.email.digestDay']).toBeTruthy();
     });
 
     it('starts passwordReset in the resting "no reset in flight" state', () => {

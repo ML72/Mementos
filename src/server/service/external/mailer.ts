@@ -72,7 +72,7 @@ export class SmtpMailer implements Mailer {
     async verify(): Promise<boolean> {
         try {
             await this.transporter.verify();
-            console.log('EMAIL: SMTP connection verified');
+            console.log(`EMAIL: SMTP connection verified, links in emails go to ${EMAIL.APP_URL}`);
             return true;
         } catch (err: any) {
             console.error(`EMAIL: SMTP check failed (${err?.code || 'error'}): ${err?.message || err}`);

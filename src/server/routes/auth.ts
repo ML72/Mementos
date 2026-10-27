@@ -10,6 +10,9 @@
  * - POST /api/auth - Authenticate user and get JWT token
  * - POST /api/auth/verify-email - Redeem an emailed verification code and get JWT token
  * - POST /api/auth/resend-verification - Email a fresh verification code
+ * - POST /api/auth/forgot-password - Email a password reset code
+ * - POST /api/auth/reset-password - Redeem a reset code, set a new password and get JWT token
+ * - POST /api/auth/change-password - Change the password of the signed-in user and get JWT token
  */
 
 import { Request, Response, Router } from 'express';
@@ -17,10 +20,16 @@ import { check, validationResult } from 'express-validator';
 import { privateAccess, emailCodeLimiter } from '../middleware';
 import { AuthService } from '../service';
 import { sendError } from '../util';
-import { EMAIL } from '../settings';
+import { CONTENT_LIMITS, EMAIL } from '../settings';
 
 const router = Router();
 const authService = new AuthService();
+
+const { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } = CONTENT_LIMITS.USER;
+const newPasswordCheck = (field: string) =>
+    check(field, `Password must be ${PASSWORD_MIN_LENGTH} to ${PASSWORD_MAX_LENGTH} characters long`)
+        .isString()
+        .isLength({ min: PASSWORD_MIN_LENGTH, max: PASSWORD_MAX_LENGTH });
 
 // @route GET api/auth
 // @desc get basic user information via token
@@ -125,6 +134,88 @@ router.post('/resend-verification', emailCodeLimiter, [
     // Respond before doing the work, so timing does not distinguish the outcomes either.
     res.json({ msg: 'If that account needs verifying, a new code has been sent.' });
     await authService.sendVerificationCode(req.body.email);
+});
+
+// @route POST api/auth/forgot-password
+// @desc email a password reset code. Identical response for every outcome (unknown address,
+//       rate-limited, sent), so it cannot be used to probe for accounts.
+// @access public
+router.post('/forgot-password', emailCodeLimiter, [
+    check('email', 'Please enter a valid email').trim().isEmail().toLowerCase()
+], async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()) {
+        sendError(res, 400, errors.array().map(e => e.msg));
+        return;
+    }
+
+    // Respond before doing the work, so timing does not distinguish the outcomes either.
+    res.json({ msg: 'If an account uses that address, a reset code has been sent to it.' });
+    await authService.sendPasswordResetCode(req.body.email);
+});
+
+// @route POST api/auth/reset-password
+// @desc redeem an emailed reset code and set a new password, then sign in. Every existing
+//       session ends, including that of anyone who registered the address without owning it.
+// @access public
+router.post('/reset-password', emailCodeLimiter, [
+    check('email', 'Please enter a valid email').trim().isEmail().toLowerCase(),
+    check('code', `Reset code must be ${EMAIL.PASSWORD_RESET.CODE_LENGTH} digits`)
+        .isString()
+        .trim()
+        .matches(new RegExp(`^\\d{${EMAIL.PASSWORD_RESET.CODE_LENGTH}}$`)),
+    newPasswordCheck('password')
+], async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()) {
+        sendError(res, 400, errors.array().map(e => e.msg));
+        return;
+    }
+
+    try {
+        const { email, code, password } = req.body;
+        const result = await authService.resetPassword(email, code, password);
+
+        if (!result.success) {
+            sendError(res, 400, result.error || 'Password reset failed');
+            return;
+        }
+
+        res.json({ token: result.token });
+    } catch(err: any) {
+        console.error(err.message);
+        sendError(res, 500, 'Server Error - Please try again');
+    }
+});
+
+// @route POST api/auth/change-password
+// @desc change the signed-in user's password; signs every other session out and answers with
+//       a fresh token for this one (the one it was called with stops working too)
+// @access private
+router.post('/change-password', privateAccess, [
+    check('currentPassword', 'Please enter your current password').isString().not().isEmpty(),
+    newPasswordCheck('newPassword')
+], async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()) {
+        sendError(res, 400, errors.array().map(e => e.msg));
+        return;
+    }
+
+    try {
+        const { currentPassword, newPassword } = req.body;
+        const result = await authService.changePassword(req.user!.id, currentPassword, newPassword);
+
+        if (!result.success) {
+            sendError(res, 400, result.error || 'Password change failed');
+            return;
+        }
+
+        res.json({ token: result.token });
+    } catch(err: any) {
+        console.error(err.message);
+        sendError(res, 500, 'Server Error - Please try again');
+    }
 });
 
 export default router;

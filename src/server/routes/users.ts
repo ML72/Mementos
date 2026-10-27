@@ -185,6 +185,58 @@ router.put('/profile', privateAccess, [
     }
 });
 
+// @route GET api/users/settings
+// @desc get the current user's settings: the weekly digest switch, its day, and when the next
+//       digest is due. An explicit whitelist; the unsubscribe token never leaves the server.
+// @access private
+router.get('/settings', privateAccess, async (req: Request, res: Response) => {
+    try {
+        const result = await userService.getSettings(req.user!.id);
+
+        if (!result.success) {
+            sendError(res, 404, result.error || 'User not found');
+            return;
+        }
+
+        res.json(result.settings);
+    } catch (err: any) {
+        console.error(err.message);
+        sendError(res, 500, 'Server Error - Please try again');
+    }
+});
+
+// @route PUT api/users/settings
+// @desc change the weekly digest switch and/or day (0 = Sunday ... 6 = Saturday); answers with
+//       the updated settings, including when the next digest is now due
+// @access private
+router.put('/settings', privateAccess, [
+    check('weeklyDigest', 'Weekly digest must be true or false').optional().isBoolean({ strict: true }),
+    check('digestDay', 'Digest day must be a whole number from 0 (Sunday) to 6 (Saturday)')
+        .optional()
+        .custom(value => Number.isInteger(value) && value >= 0 && value <= 6)
+], async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        sendError(res, 400, errors.array().map(e => e.msg));
+        return;
+    }
+
+    try {
+        const { weeklyDigest, digestDay } = req.body ?? {};
+        const result = await userService.updateSettings(req.user!.id, { weeklyDigest, digestDay });
+
+        if (!result.success) {
+            sendError(res, 400, result.error || 'Update failed');
+            return;
+        }
+
+        res.json(result.settings);
+    } catch (err: any) {
+        console.error(err.message);
+        sendError(res, 500, 'Server Error - Please try again');
+    }
+});
+
 // @route GET api/users/:id/following
 // @desc get a user's following list
 // @access private
