@@ -4,7 +4,8 @@ import {
     attachAuthToken,
     isTokenInvalidError,
     setupAxiosInterceptors,
-    signOutOnInvalidToken
+    signOutOnInvalidToken,
+    tokenSentWith
 } from '../../src/client/src/service/interceptors';
 
 // Pure unit test — the interceptors take their dependencies as arguments, so this needs no
@@ -13,13 +14,15 @@ import {
 // because nothing acted on the `is_token_invalid` flag every API error response carries.
 
 /** The shape axios rejects with when the API answers with a status error. */
-const apiError = (data: object) => ({
+const apiError = (data: object, sentToken: string | null = null) => ({
     isAxiosError: true,
+    config: { headers: sentToken ? { [AUTH_HEADER]: sentToken } : {} },
     response: { status: 401, statusText: 'Unauthorized', data, headers: {} }
 });
 
-const TOKEN_INVALID = apiError({ errors: [{ msg: 'Token is not valid' }], is_token_invalid: true });
-const NOT_FOUND = apiError({ errors: [{ msg: 'Note not found' }], is_token_invalid: false });
+const EXPIRED = 'Your session has expired. Please sign in again.';
+const TOKEN_INVALID = apiError({ errors: [{ msg: EXPIRED }], is_token_invalid: true }, 'a-valid-token');
+const NOT_FOUND = apiError({ errors: [{ msg: 'Note not found' }], is_token_invalid: false }, 'a-valid-token');
 
 describe('isTokenInvalidError', () => {
     it('is true only when the API flags the token as invalid', () => {
@@ -67,19 +70,40 @@ describe('attachAuthToken', () => {
     });
 });
 
+describe('tokenSentWith', () => {
+    it('reads the token a request went out with', () => {
+        expect(tokenSentWith(TOKEN_INVALID)).toBe('a-valid-token');
+    });
+
+    it('asks AxiosHeaders, which ignores case, when that is what axios hands back', () => {
+        const stored = new Map([['x-auth-token', 'a-valid-token']]);
+        const headers = { get: (name: string) => stored.get(name.toLowerCase()) };
+        expect(tokenSentWith({ config: { headers } })).toBe('a-valid-token');
+    });
+
+    it('is null when the request carried no token, or there is no request at all', () => {
+        expect(tokenSentWith(apiError({}, null))).toBeNull();
+        expect(tokenSentWith(new Error('Network Error'))).toBeNull();
+        expect(tokenSentWith(undefined)).toBeNull();
+    });
+});
+
 describe('signOutOnInvalidToken', () => {
     let token: string | null;
     let signOuts: number;
+    let reasons: (string | undefined)[];
     let handler: (error: unknown) => Promise<never>;
 
     beforeEach(() => {
         token = 'a-valid-token';
         signOuts = 0;
+        reasons = [];
         handler = signOutOnInvalidToken({
             getToken: () => token,
             // Mirrors the real handler: signing out clears the token synchronously.
-            onTokenInvalid: () => {
+            onTokenInvalid: (reason) => {
                 signOuts++;
+                reasons.push(reason);
                 token = null;
             }
         });
@@ -91,11 +115,31 @@ describe('signOutOnInvalidToken', () => {
         expect(token).toBeNull();
     });
 
+    it("passes the API's reason along, so the user is told why", async () => {
+        await expect(handler(TOKEN_INVALID)).rejects.toBeDefined();
+        expect(reasons).toEqual([EXPIRED]);
+    });
+
     it('re-rejects with the original error so each caller still handles it', async () => {
         // Services read err.response.data.errors[].msg to raise their own alerts.
         await expect(handler(TOKEN_INVALID)).rejects.toMatchObject({
-            response: { data: { errors: [{ msg: 'Token is not valid' }] } }
+            response: { data: { errors: [{ msg: EXPIRED }] } }
         });
+    });
+
+    it('leaves a newer session alone when a request sent under an older token is refused', async () => {
+        // A password change (here or in another tab) swapped the token while the request was in
+        // flight, or the user signed out and back in: the refusal is about a token now gone.
+        token = 'the-new-token';
+        await expect(handler(TOKEN_INVALID)).rejects.toBe(TOKEN_INVALID);
+        expect(signOuts).toBe(0);
+        expect(token).toBe('the-new-token');
+    });
+
+    it('leaves the session alone when the refused request carried no token', async () => {
+        await expect(handler(apiError({ errors: [{ msg: 'No token, authorization denied' }], is_token_invalid: true })))
+            .rejects.toBeDefined();
+        expect(signOuts).toBe(0);
     });
 
     it('leaves the session alone for ordinary errors', async () => {
@@ -122,6 +166,21 @@ describe('signOutOnInvalidToken', () => {
             handler(apiError({ errors: [{ msg: 'No token, authorization denied' }], is_token_invalid: true }))
         ).rejects.toBeDefined();
         expect(signOuts).toBe(0);
+    });
+
+    it('acts once on a burst, also when the first refusal hands over a newer session instead', async () => {
+        // What main.tsx does when another tab already saved a new token: adopt it, no sign-out.
+        let handled = 0;
+        handler = signOutOnInvalidToken({
+            getToken: () => token,
+            onTokenInvalid: () => {
+                handled++;
+                token = 'adopted-from-another-tab';
+            }
+        });
+        await Promise.allSettled([handler(TOKEN_INVALID), handler(TOKEN_INVALID)]);
+        expect(handled).toBe(1);
+        expect(token).toBe('adopted-from-another-tab');
     });
 });
 

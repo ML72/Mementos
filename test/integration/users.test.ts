@@ -172,6 +172,49 @@ describe('Users Endpoints Integration', () => {
             expect(profileRes.body.fullName).toBe('Updated Name');
             expect(profileRes.body.bio).toBe('New Bio');
         });
+
+        it('should say what is too long, and save nothing', async () => {
+            const { token } = await createUserAndGetToken('limits@test.com');
+            const update = (data: object) => request(app).put('/api/users/profile').set('x-auth-token', token).send(data);
+
+            const longName = await update({ fullName: 'n'.repeat(101) });
+            expect(longName.statusCode).toEqual(400);
+            expect(longName.body.errors[0].msg).toBe('Name must be at most 100 characters');
+
+            const longBio = await update({ bio: 'b'.repeat(501) });
+            expect(longBio.statusCode).toEqual(400);
+            expect(longBio.body.errors[0].msg).toBe('Bio must be at most 500 characters');
+
+            const user = await User.findOne({ 'login.email': 'limits@test.com' }).lean() as any;
+            expect(user.profile.fullName).toBe('Test User');
+            expect(user.profile.bio).toBe('');
+            expect((await update({ fullName: 'n'.repeat(100), bio: 'b'.repeat(500) })).statusCode).toEqual(200);
+        });
+    });
+
+    describe('POST /api/users (Registration)', () => {
+        it('should say when the name is too long, instead of failing with a server error', async () => {
+            const res = await request(app).post('/api/users')
+                .send({ email: 'longname@test.com', password: 'password123', fullName: 'n'.repeat(101) });
+            expect(res.statusCode).toEqual(400);
+            expect(res.body.errors[0].msg).toBe('Name must be at most 100 characters');
+            expect(await User.countDocuments()).toBe(0);
+        });
+
+        it('should require a password of 8 to 128 characters, as a reset or change does', async () => {
+            const signUp = (password: unknown) => request(app).post('/api/users')
+                .send({ email: 'newpassword@test.com', password, fullName: 'Test User' });
+
+            for (const password of ['x'.repeat(7), 'x'.repeat(129), 12345678]) {
+                const res = await signUp(password);
+                expect(res.statusCode).toEqual(400);
+                expect(res.body.errors.map((e: any) => e.msg)).toEqual(['Password must be 8 to 128 characters long']);
+            }
+            expect(await User.countDocuments()).toBe(0);
+
+            expect((await signUp('x'.repeat(8))).statusCode).toEqual(200);
+            expect(await User.countDocuments()).toBe(1);
+        });
     });
 
     describe('GET /api/users/search', () => {

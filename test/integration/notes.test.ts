@@ -169,6 +169,80 @@ describe('Notes Endpoints Integration', () => {
         });
     });
 
+    describe('Note validation', () => {
+        const create = (token: string, note: object) =>
+            request(app).post('/api/notes').set('x-auth-token', token).send({ subject: 'S', content: 'C', ...note });
+        const messages = (res: any): string[] => res.body.errors.map((e: any) => e.msg);
+
+        it('accepts tags of up to 30 characters', async () => {
+            const { token } = await createUserAndGetToken('tags@test.com');
+            const res = await create(token, { tags: ['t'.repeat(30), 'short'] });
+            expect(res.statusCode).toEqual(200);
+            expect(res.body.tags).toEqual(['t'.repeat(30), 'short']);
+        });
+
+        it('says what is wrong with a note, instead of failing with a server error', async () => {
+            const { token } = await createUserAndGetToken('rules@test.com');
+            const cases: [object, string][] = [
+                [{ tags: ['x'.repeat(31)] }, `Tag "${'x'.repeat(31)}" is too long: tags can be at most 30 characters`],
+                [{ tags: Array.from({ length: 11 }, (_, i) => `tag${i}`) }, 'A note can have at most 10 tags (it has 11)'],
+                [{ tags: [''] }, 'Tags cannot be empty'],
+                [{ subject: 's'.repeat(201) }, 'Subject must be at most 200 characters (it is 201)'],
+                [{ content: 'c'.repeat(10001) }, 'Content must be at most 10,000 characters (it is 10,001)'],
+                [{ subject: '' }, 'Subject is required'],
+                [{ importance: 11 }, 'Importance must be a number from 1 to 10']
+            ];
+            for (const [note, message] of cases) {
+                const res = await create(token, note);
+                expect(res.statusCode).toEqual(400);
+                expect(messages(res)).toEqual([message]);
+            }
+            expect(await Note.countDocuments()).toBe(0);
+        });
+
+        it('reports every problem at once, and shortens a runaway tag in the message', async () => {
+            const { token } = await createUserAndGetToken('many@test.com');
+            const res = await create(token, { subject: '', tags: ['ok', 'y'.repeat(500)] });
+            expect(res.statusCode).toEqual(400);
+            expect(messages(res)).toEqual([
+                'Subject is required',
+                `Tag "${'y'.repeat(40)}…" is too long: tags can be at most 30 characters`
+            ]);
+        });
+
+        it('counts length as the schema does, so nothing slips through to a failed save', async () => {
+            // 16 emoji are 16 characters to a person but 32 UTF-16 units, which is what Mongoose's
+            // maxlength counts; a route that counted the first way would pass the note on to fail.
+            const { token } = await createUserAndGetToken('emoji@test.com');
+            const res = await create(token, { tags: ['🧠'.repeat(16)] });
+            expect(res.statusCode).toEqual(400);
+            expect(messages(res)[0]).toMatch(/tags can be at most 30 characters/);
+            expect((await create(token, { tags: ['🧠'.repeat(15)] })).statusCode).toEqual(200);
+        });
+
+        it('checks an update the same way, and leaves the note as it was', async () => {
+            const { token } = await createUserAndGetToken('edit@test.com');
+            const noteId = (await create(token, { tags: ['before'] })).body._id;
+
+            const res = await request(app)
+                .put(`/api/notes/${noteId}`)
+                .set('x-auth-token', token)
+                .send({ subject: 'Edited', content: 'Edited', tags: ['before', 'z'.repeat(31)] });
+            expect(res.statusCode).toEqual(400);
+            expect(messages(res)).toEqual([`Tag "${'z'.repeat(31)}" is too long: tags can be at most 30 characters`]);
+
+            const note = await Note.findById(noteId).lean() as any;
+            expect(note.subject).toBe('S');
+            expect(note.tags).toEqual(['before']);
+
+            // Fields left out of an update are left alone, as before.
+            const partial = await request(app).put(`/api/notes/${noteId}`).set('x-auth-token', token).send({ tags: ['after'] });
+            expect(partial.statusCode).toEqual(200);
+            expect(partial.body.subject).toBe('S');
+            expect(partial.body.tags).toEqual(['after']);
+        });
+    });
+
     describe('Notes Like/Unlike', () => {
         it('should like and unlike a note', async () => {
             const { token: user1Token } = await createUserAndGetToken('liker@test.com');
@@ -283,6 +357,20 @@ describe('Notes Endpoints Integration', () => {
             expect(subjects).toContain('u1');
             expect(subjects).toContain('u2');
             expect(subjects).not.toContain('u3');
+        });
+    });
+
+    describe('Response compression', () => {
+        it('should compress a large response for a client that accepts it', async () => {
+            const { token } = await createUserAndGetToken('reader@test.com');
+            const content = 'A note long enough to be worth compressing. '.repeat(40);
+            await request(app).post('/api/notes').set('x-auth-token', token).send({ subject: 'Long', content });
+
+            const res = await request(app).get('/api/notes/my').set('x-auth-token', token).set('Accept-Encoding', 'gzip');
+
+            expect(res.statusCode).toEqual(200);
+            expect(res.headers['content-encoding']).toBe('gzip');
+            expect(res.body[0].content).toBe(content); // Supertest unzips it, as a browser does
         });
     });
 });

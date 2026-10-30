@@ -21,8 +21,7 @@ export const setNewAlert = (
 // raise one alert per validation message, falling back to a generic message.
 export const setApiErrorAlert = (dispatch: any, err: any, fallbackMsg: string) => {
     // A dead token is already reported and acted on by the axios response interceptor
-    // (sign-out plus a "your login has expired" alert), so don't stack the raw API message
-    // ("Token is not valid") on top of it.
+    // (sign-out plus an alert with the API's reason), so don't repeat that message here.
     if (isTokenInvalidError(err)) {
         return;
     }

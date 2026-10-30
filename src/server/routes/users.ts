@@ -2,19 +2,27 @@ import { Request, Response, Router } from 'express';
 import { check, validationResult, query as expressQuery } from 'express-validator';
 import { privateAccess } from '../middleware';
 import { UserService } from '../service';
-import { sendError } from '../util';
-import { REQUEST_CONSTRAINTS } from '../settings';
+import { newPasswordCheck, sendError } from '../util';
+import { CONTENT_LIMITS, REQUEST_CONSTRAINTS } from '../settings';
 
 const router = Router();
 const userService = new UserService();
+
+const { FULL_NAME_MAX_LENGTH, BIO_MAX_LENGTH } = CONTENT_LIMITS.USER;
+
+// Counted as the User schema counts them (`String#length`), so nothing that passes here fails the
+// save with a less helpful error.
+const fitsFullName = (fullName: unknown) => String(fullName).length <= FULL_NAME_MAX_LENGTH;
+const FULL_NAME_TOO_LONG = `Name must be at most ${FULL_NAME_MAX_LENGTH} characters`;
 
 // @route POST api/users
 // @desc register user
 // @access public
 router.post('/', [
-    check('fullName', 'Please enter your full name').not().isEmpty(),
+    check('fullName', 'Please enter your full name').not().isEmpty()
+        .bail().custom(fitsFullName).withMessage(FULL_NAME_TOO_LONG),
     check('email', 'Please enter a valid email').trim().isEmail().toLowerCase(),
-    check('password', 'Password must be at least 6 characters long').isLength({ min: 6 })
+    newPasswordCheck('password')
 ], async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if(!errors.isEmpty()) {
@@ -160,8 +168,10 @@ router.get('/:id/profile', privateAccess, async (req: Request, res: Response) =>
 // @desc update current user's profile
 // @access private
 router.put('/profile', privateAccess, [
-    check('fullName', 'Name cannot be empty').optional().not().isEmpty(),
-    check('bio', 'Bio cannot exceed length').optional().isLength({ max: 500 })
+    check('fullName', 'Name cannot be empty').optional().not().isEmpty()
+        .bail().custom(fitsFullName).withMessage(FULL_NAME_TOO_LONG),
+    check('bio', `Bio must be at most ${BIO_MAX_LENGTH} characters`)
+        .optional().custom((bio: unknown) => String(bio).length <= BIO_MAX_LENGTH)
 ], async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {

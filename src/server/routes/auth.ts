@@ -19,17 +19,11 @@ import { Request, Response, Router } from 'express';
 import { check, validationResult } from 'express-validator';
 import { privateAccess, emailCodeLimiter } from '../middleware';
 import { AuthService } from '../service';
-import { sendError } from '../util';
-import { CONTENT_LIMITS, EMAIL } from '../settings';
+import { newPasswordCheck, sendError } from '../util';
+import { EMAIL } from '../settings';
 
 const router = Router();
 const authService = new AuthService();
-
-const { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } = CONTENT_LIMITS.USER;
-const newPasswordCheck = (field: string) =>
-    check(field, `Password must be ${PASSWORD_MIN_LENGTH} to ${PASSWORD_MAX_LENGTH} characters long`)
-        .isString()
-        .isLength({ min: PASSWORD_MIN_LENGTH, max: PASSWORD_MAX_LENGTH });
 
 // @route GET api/auth
 // @desc get basic user information via token

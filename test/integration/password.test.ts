@@ -5,7 +5,9 @@ import jwt from 'jsonwebtoken';
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, jest } from '@jest/globals';
 import app from '../../src/server/index';
 import { User, Note } from '../../src/server/models';
-import { AuthService, INVALID_RESET_CODE, WRONG_CURRENT_PASSWORD, MemoryMailer, setMailer } from '../../src/server/service';
+import {
+    AuthService, INVALID_RESET_CODE, WRONG_CURRENT_PASSWORD, SESSION_EXPIRED, SESSION_REVOKED, MemoryMailer, setMailer
+} from '../../src/server/service';
 import { EMAIL, JWT_SECRET } from '../../src/server/settings';
 import { emailCodeLimiter } from '../../src/server/middleware';
 import { registerVerified } from '../helpers/auth';
@@ -84,10 +86,11 @@ describe('Password reset and change', () => {
         return latestResetCode(email);
     };
     const wrongCodeFor = (code: string) => (code === '111111' ? '222222' : '111111');
-    const expectSignedOut = async (token: string) => {
+    const expectSignedOut = async (token: string, reason?: string) => {
         const res = await me(token);
         expect(res.statusCode).toBe(401);
         expect(res.body.is_token_invalid).toBe(true);
+        if (reason) expect(res.body.errors[0].msg).toBe(reason);
     };
     // -----------------------------------------------------------------------
 
@@ -278,8 +281,9 @@ describe('Password reset and change', () => {
             const res = await change(tokenA, 'password123', 'next-password-1');
             expect(res.statusCode).toBe(200);
             expect((await me(res.body.token)).statusCode).toBe(200);
-            await expectSignedOut(tokenA);
-            await expectSignedOut(tokenB);
+            // The client shows this reason to whoever is signed out, on another device or tab.
+            await expectSignedOut(tokenA, SESSION_REVOKED);
+            await expectSignedOut(tokenB, SESSION_REVOKED);
             expect((await login('change@example.com')).statusCode).toBe(400);
             expect((await login('change@example.com', 'next-password-1')).statusCode).toBe(200);
         });
@@ -325,13 +329,25 @@ describe('Password reset and change', () => {
         it('rejects a correctly signed token that is not bound to the password', async () => {
             await registerVerified('unbound@example.com');
             const id = (await dbUser('unbound@example.com'))._id.toString();
-            await expectSignedOut(jwt.sign({ user: { id } }, JWT_SECRET, { expiresIn: 3600 }));
+            // Not "your password was changed": nothing about this account's password moved.
+            await expectSignedOut(jwt.sign({ user: { id } }, JWT_SECRET, { expiresIn: 3600 }), SESSION_EXPIRED);
+        });
+
+        it('says a session has expired when it has', async () => {
+            await registerVerified('expired@example.com');
+            const user = await dbUser('expired@example.com');
+            const expired = jwt.sign(
+                { user: { id: user._id.toString() }, passwordChangedAt: new Date(user.login.passwordChangedAt).getTime() },
+                JWT_SECRET,
+                { expiresIn: -60 }
+            );
+            await expectSignedOut(expired, SESSION_EXPIRED);
         });
 
         it('rejects a token for an account that no longer exists', async () => {
             const token = await registerVerified('gone@example.com');
             await User.deleteOne({ 'login.email': 'gone@example.com' });
-            await expectSignedOut(token);
+            await expectSignedOut(token, SESSION_EXPIRED);
         });
 
         it('does not sign anyone out when the check fails on our side', async () => {

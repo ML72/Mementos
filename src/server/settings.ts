@@ -26,14 +26,15 @@ const CONTENT_LIMITS: any = {
         SUBJECT_MAX_LENGTH: 200,
         CONTENT_MIN_LENGTH: 1,
         CONTENT_MAX_LENGTH: 10000,
-        MAX_TAGS: 10,
+        MAX_TAGS: 10,               // mirrored in src/client/src/components/layout/TagInput.tsx
         TAG_MIN_LENGTH: 1,
-        TAG_MAX_LENGTH: 20
+        TAG_MAX_LENGTH: 30          // mirrored there too
     },
     USER: {
-        PASSWORD_MIN_LENGTH: 8,
+        PASSWORD_MIN_LENGTH: 8,     // mirrored in src/client/src/service/auth.ts
         PASSWORD_MAX_LENGTH: 128,
         EMAIL_MAX_LENGTH: 254,
+        FULL_NAME_MAX_LENGTH: 100,
         BIO_MAX_LENGTH: 500
     }
 };

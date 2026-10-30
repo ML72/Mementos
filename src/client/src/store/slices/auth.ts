@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-interface AuthState {
+export interface AuthState {
   token: string | null;
   userId: string | null;
   email: string | null;
@@ -53,9 +53,12 @@ export const authSlice = createSlice({
     // A password change or reset revokes the old token and hands out a new one.
     updateToken: (state, action: PayloadAction<string>) => {
       state.token = action.payload;
-    }
+    },
+    // Another tab changed the session every tab shares (signed in or out, or swapped the
+    // token): this tab takes it over as is. See service/session_sync.ts.
+    replaceAuth: (_state, action: PayloadAction<AuthState>) => action.payload
   }
 });
 
-export const { setAuth, clearAuth, updateEmail, updateToken } = authSlice.actions;
+export const { setAuth, clearAuth, updateEmail, updateToken, replaceAuth } = authSlice.actions;
 export default authSlice.reducer;

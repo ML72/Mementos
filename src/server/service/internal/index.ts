@@ -13,7 +13,9 @@ export type {
     VerifyEmailResult,
     PasswordChangeResult
 } from './auth';
-export { INVALID_VERIFICATION_CODE, INVALID_RESET_CODE, EMAIL_UNVERIFIED, WRONG_CURRENT_PASSWORD } from './auth';
+export {
+    INVALID_VERIFICATION_CODE, INVALID_RESET_CODE, EMAIL_UNVERIFIED, WRONG_CURRENT_PASSWORD, SESSION_EXPIRED, SESSION_REVOKED
+} from './auth';
 export type { CreateUserData, CreateUserResult, EmailSettings, SettingsResult } from './user';
 export type { CreateNoteData, UpdateNoteData, NoteResult } from './notes';
 export type { FeedResult } from './feed';

@@ -2,16 +2,13 @@ import axios from 'axios';
 import { setAuth, clearAuth, updateToken } from '../store/slices/auth';
 import { setNewAlert, setApiErrorAlert } from './alert';
 // The axios request/response interceptors live in ./interceptors.ts and are installed in main.tsx.
+// The request interceptor attaches the store's token to every request, so the store is the only
+// place a token lives — and the only copy ./session_sync.ts has to keep in line across tabs.
 
-// Helper function to set axios auth header (legacy, now handled by interceptor but kept for compatibility)
-const setAuthHeader = (token: string) => {
-  axios.defaults.headers.common['x-auth-token'] = token;
-};
-
-// Helper function to remove axios auth header (legacy, now handled by interceptor but kept for compatibility)
-const removeAuthHeader = () => {
-  delete axios.defaults.headers.common['x-auth-token'];
-};
+// Mirrors CONTENT_LIMITS.USER.PASSWORD_MIN_LENGTH in src/server/settings.ts. The API enforces it for
+// every new password (sign-up, reset and change) and says so when one is too short.
+const PASSWORD_MIN_LENGTH = 8;
+export const NEW_PASSWORD_HINT = `At least ${PASSWORD_MIN_LENGTH} characters`;
 
 // What a sign-in attempt can lead to: a session, nothing, or the code-entry page.
 export type SignInOutcome = 'signed-in' | 'needs-verification' | 'failed';
@@ -27,7 +24,6 @@ const completeSignIn = async (dispatch: any, token: string) => {
   });
   const { _id, login, roles, profile } = userRes.data;
 
-  setAuthHeader(token);
   dispatch(
     setAuth({
       token,
@@ -62,10 +58,7 @@ export const login = async (
 
 // Logout handler
 export const logout = (dispatch: any, displaySuccessAlert: boolean = true) => {
-  // Remove axios default header
-  removeAuthHeader();
-
-  // Clear Redux store (redux-persist will handle persistence)
+  // Clear Redux store (redux-persist will handle persistence, and other tabs follow)
   dispatch(clearAuth());
 
   // Show logout success alert
@@ -177,19 +170,12 @@ export const changePassword = async (
   }
 };
 
-// Handles token invalidation: shows alert and logs out
-
+// Handles token invalidation: shows why (the API says: expired, or the password was changed
+// elsewhere) and logs out
 export const handleTokenInvalid = (dispatch: any, msg?: string) => {
   setNewAlert(dispatch, {
-    msg: (msg || 'Your login has expired. Please log in again.') + (msg && !msg.trim().endsWith('.') ? '.' : ''),
+    msg: (msg || 'Your session has expired. Please sign in again.') + (msg && !msg.trim().endsWith('.') ? '.' : ''),
     alertType: 'error'
   });
   logout(dispatch, false);
 }
-
-// Initialize auth state from persisted store
-export const initializeAuth = (token: string | null) => {
-  if (token) {
-    setAuthHeader(token);
-  }
-};

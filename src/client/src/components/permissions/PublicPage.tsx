@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { RootState } from "../../store/store";
+import PageLoading from "../layout/PageLoading";
 
 interface PublicPageProps {
   children: React.ReactNode;
@@ -23,8 +24,9 @@ const PublicPage: React.FC<PublicPageProps> = ({ children, restrictAuthenticated
     }
   }, [isAuthenticated, navigate, restrictAuthenticated]);
 
+  // Showing while the redirect waits for the signed-in page to download
   if (restrictAuthenticated && isAuthenticated) {
-    return null;
+    return <PageLoading />;
   }
 
 

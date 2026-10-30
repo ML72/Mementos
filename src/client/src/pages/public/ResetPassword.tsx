@@ -12,7 +12,7 @@ import {
 import { useDispatch } from 'react-redux';
 import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import { setNewAlert } from '../../service/alert';
-import { forgotPassword, resetPassword } from '../../service/auth';
+import { forgotPassword, resetPassword, NEW_PASSWORD_HINT } from '../../service/auth';
 import CustomPage from '../../components/layout/CustomPage';
 
 // Mirror EMAIL.PASSWORD_RESET in src/server/settings.ts (the client cannot import server code).
@@ -126,6 +126,7 @@ const ResetPassword: React.FC = () => {
                   name="password"
                   type="password"
                   autoComplete="new-password"
+                  helperText={NEW_PASSWORD_HINT}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   variant="outlined"

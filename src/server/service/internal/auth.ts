@@ -68,6 +68,9 @@ export const INVALID_VERIFICATION_CODE = 'Invalid or expired verification code';
 export const INVALID_RESET_CODE = 'Invalid or expired reset code';
 export const EMAIL_UNVERIFIED = 'Please verify your email address. We sent you a code.';
 export const WRONG_CURRENT_PASSWORD = 'Current password is incorrect';
+/** Why a token was refused, worded for the person it signs out: the client shows it as is. */
+export const SESSION_EXPIRED = 'Your session has expired. Please sign in again.';
+export const SESSION_REVOKED = 'Your password was changed, so you were signed out. Please sign in with your new password.';
 
 /** Trim + lowercase: the schema does the same on write and on query filters. */
 export const normalizeEmail = (email: string): string => String(email ?? '').trim().toLowerCase();
@@ -89,13 +92,31 @@ export const passwordChangedAtOf = (user: any): number =>
 export const signToken = (userId: string, passwordChangedAt: number): string =>
     sign({ user: { id: userId }, passwordChangedAt }, JWT_SECRET, { expiresIn: 259200 }); // 3 days
 
+/**
+ * `passwordChangedAtOf` for an account that is being signed in, read lean together with
+ * `dateCreated`. Accounts created before tokens were bound to the password have no
+ * `passwordChangedAt`, and a token bound to a missing value can never verify, so such an account
+ * is given its creation date, written only while the field is still unset. Every sign-in racing
+ * here computes that same date and gets a working token; a reset landing in between keeps its own
+ * date, and then this token is refused, as it should be: it was issued under the old password.
+ */
+export const ensurePasswordChangedAt = async (user: any): Promise<number> => {
+    if (user.login?.passwordChangedAt) return passwordChangedAtOf(user);
+    const assumed = new Date(user.dateCreated ?? 0);
+    await User.updateOne(
+        { _id: user._id, 'login.passwordChangedAt': null },
+        { $set: { 'login.passwordChangedAt': assumed } }
+    );
+    return assumed.getTime();
+};
+
 class AuthService {
     private readonly codeService = new CodeService();
 
     async authenticateUser(email: string, password: string): Promise<AuthenticateUserResult> {
         try {
             const user = await User.findOne({ 'login.email': normalizeEmail(email) })
-                .select('login.password login.verified login.passwordChangedAt')
+                .select('login.password login.verified login.passwordChangedAt dateCreated')
                 .lean() as any;
             if (!user) {
                 return { success: false, error: 'Invalid credentials' };
@@ -114,7 +135,7 @@ class AuthService {
 
             // Bound to the password version read together with the hash just checked, so a reset
             // that lands while bcrypt runs still revokes this token.
-            return { success: true, token: signToken(user._id.toString(), passwordChangedAtOf(user)) };
+            return { success: true, token: signToken(user._id.toString(), await ensurePasswordChangedAt(user)) };
         } catch (error: any) {
             console.error('Authentication error:', error.message);
             return { success: false, error: 'Server error' };
@@ -126,19 +147,22 @@ class AuthService {
      * password hasn't changed since the token was issued. One point lookup per request.
      */
     async verifyToken(token: string): Promise<VerifyTokenResult> {
-        const invalid: VerifyTokenResult = { success: false, invalid: true, error: 'Token is not valid' };
+        const invalid = (error: string): VerifyTokenResult => ({ success: false, invalid: true, error });
         let payload: any;
         try {
             payload = verify(token, JWT_SECRET);
         } catch {
-            return invalid;
+            return invalid(SESSION_EXPIRED);
         }
         const userId = payload?.user?.id;
-        if (!mongoose.isValidObjectId(userId)) return invalid;
+        if (!mongoose.isValidObjectId(userId) || typeof payload.passwordChangedAt !== 'number') {
+            return invalid(SESSION_EXPIRED);
+        }
 
         try {
             const user = await User.findById(userId).select('login.passwordChangedAt').lean();
-            if (!user || payload.passwordChangedAt !== passwordChangedAtOf(user)) return invalid;
+            if (!user) return invalid(SESSION_EXPIRED);
+            if (payload.passwordChangedAt !== passwordChangedAtOf(user)) return invalid(SESSION_REVOKED);
             return { success: true, user: { id: userId } };
         } catch (error: any) {
             console.error('Verify token error:', error.message);
@@ -203,8 +227,8 @@ class AuthService {
             if (!userId) {
                 return { success: false, error: INVALID_VERIFICATION_CODE };
             }
-            const user = await User.findById(userId).select('login.passwordChangedAt').lean();
-            return { success: true, token: signToken(userId, passwordChangedAtOf(user)) };
+            const user = await User.findById(userId).select('login.passwordChangedAt dateCreated').lean();
+            return { success: true, token: signToken(userId, await ensurePasswordChangedAt(user)) };
         } catch (error: any) {
             console.error('Verify email error:', error.message);
             return { success: false, error: 'Server error' };
