@@ -3,11 +3,56 @@ import { check, validationResult, query as expressQuery } from 'express-validato
 import { privateAccess } from '../middleware';
 import { NotesService, FeedService } from '../service';
 import { sendError } from '../util';
-import { FEED } from '../settings';
+import { CONTENT_LIMITS, FEED } from '../settings';
 
 const router = Router();
 const notesService = new NotesService();
 const feedService = new FeedService();
+
+const { SUBJECT_MAX_LENGTH, CONTENT_MAX_LENGTH, MAX_TAGS, TAG_MAX_LENGTH } = CONTENT_LIMITS.NOTE;
+
+/** A tag quoted back in an error message, cut short so a runaway one can't flood the alert. */
+const quoteTag = (tag: string): string => `"${tag.length > 40 ? `${tag.slice(0, 40)}…` : tag}"`;
+
+/**
+ * The rules for a note's fields, with messages that say what to fix: the client shows them as
+ * they are. They repeat the Note schema's limits so a bad note is told exactly what is wrong,
+ * where a failed save could only report a server error. Lengths are counted as the schema counts
+ * them (`String#length`). When updating, a field may be left out, but one that is sent must be
+ * valid.
+ */
+const noteChecks = (partial: boolean) => {
+    const field = (path: string) => (partial ? check(path).optional() : check(path));
+    return [
+        field('subject')
+            .notEmpty().withMessage('Subject is required').bail()
+            .isString().withMessage('Subject must be text').bail()
+            .custom((subject: string) => subject.length <= SUBJECT_MAX_LENGTH)
+            .withMessage((subject: string) =>
+                `Subject must be at most ${SUBJECT_MAX_LENGTH} characters (it is ${subject.length})`),
+        field('content')
+            .notEmpty().withMessage('Content is required').bail()
+            .isString().withMessage('Content must be text').bail()
+            .custom((content: string) => content.length <= CONTENT_MAX_LENGTH)
+            .withMessage((content: string) =>
+                `Content must be at most ${CONTENT_MAX_LENGTH.toLocaleString('en-US')} characters ` +
+                `(it is ${content.length.toLocaleString('en-US')})`),
+        check('tags')
+            .optional({ values: 'null' })
+            .isArray().withMessage('Tags must be a list').bail()
+            .isArray({ max: MAX_TAGS })
+            .withMessage((tags: unknown[]) => `A note can have at most ${MAX_TAGS} tags (it has ${tags.length})`),
+        check('tags.*')
+            .isString().withMessage('Each tag must be text').bail()
+            .notEmpty().withMessage('Tags cannot be empty').bail()
+            .custom((tag: string) => tag.length <= TAG_MAX_LENGTH)
+            .withMessage((tag: string) =>
+                `Tag ${quoteTag(tag)} is too long: tags can be at most ${TAG_MAX_LENGTH} characters`),
+        check('importance')
+            .optional({ values: 'null' })
+            .isFloat({ min: 1, max: 10 }).withMessage('Importance must be a number from 1 to 10')
+    ];
+};
 
 // @route GET api/notes
 // @desc get the personalized feed (spaced-repetition review of own notes blended with
@@ -132,8 +177,7 @@ router.get('/:id', privateAccess, async (req: Request, res: Response) => {
 // @access private
 router.post('/', [
     privateAccess,
-    check('subject', 'Subject is required').not().isEmpty(),
-    check('content', 'Content is required').not().isEmpty()
+    ...noteChecks(false)
 ], async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -160,7 +204,16 @@ router.post('/', [
 // @route PUT api/notes/:id
 // @desc update a note by id
 // @access private
-router.put('/:id', privateAccess, async (req: Request, res: Response) => {
+router.put('/:id', [
+    privateAccess,
+    ...noteChecks(true)
+], async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        sendError(res, 400, errors.array().map(e => e.msg));
+        return;
+    }
+
     try {
         const { subject, content, tags, importance } = req.body;
         const result = await notesService.updateNote(req.user!.id, req.params.id, { subject, content, tags, importance });

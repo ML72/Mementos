@@ -1,4 +1,5 @@
 import express, { Express, Request, Response } from 'express';
+import compression from 'compression';
 import path from 'path';
 import { connectDB, setupCSP, setupCORS, setupWwwRedirect } from './config';
 import { NODE_ENV, PORT, SECURITY_CSP, SECURITY_CORS_WHITELIST, WWW_REDIRECT_HOST } from './settings';
@@ -9,6 +10,10 @@ import { checkMailer, startDigestScheduler } from './service';
 // Init app
 const app: Express = express();
 app.set('trust proxy', true);
+
+// Compress responses (Brotli, or gzip for browsers without it): the JavaScript a first visit
+// downloads shrinks to about a third. Azure App Service sends whatever the app sends as is.
+app.use(compression());
 app.use(express.json());
 
 // Redirect the apex domain to its www subdomain (no-op unless WWW_REDIRECT_HOST is set)

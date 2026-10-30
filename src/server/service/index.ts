@@ -1,5 +1,7 @@
 export { AuthService, UserService, NotesService, FeedService, CodeService, DigestService, startDigestScheduler } from './internal';
-export { INVALID_VERIFICATION_CODE, INVALID_RESET_CODE, EMAIL_UNVERIFIED, WRONG_CURRENT_PASSWORD } from './internal';
+export {
+    INVALID_VERIFICATION_CODE, INVALID_RESET_CODE, EMAIL_UNVERIFIED, WRONG_CURRENT_PASSWORD, SESSION_EXPIRED, SESSION_REVOKED
+} from './internal';
 export type {
     AuthenticateUserResult,
     GetUserResult,

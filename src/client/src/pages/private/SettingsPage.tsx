@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { RootState } from '../../store/store';
 import CustomPage from '../../components/layout/CustomPage';
 import { getUserProfile, updateProfile, getSettings, updateSettings } from '../../service/user';
-import { changePassword, forgotPassword } from '../../service/auth';
+import { changePassword, forgotPassword, NEW_PASSWORD_HINT } from '../../service/auth';
 import { setNewAlert } from '../../service/alert';
 
 interface DigestSettings {
@@ -262,6 +262,7 @@ const SettingsPage: React.FC = () => {
                       type="password"
                       label="New password"
                       autoComplete="new-password"
+                      helperText={NEW_PASSWORD_HINT}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       variant="outlined"

@@ -74,7 +74,7 @@ const UserSchema = new Schema({
         fullName: {
             type: String,
             required: true,
-            maxlength: 100
+            maxlength: CONTENT_LIMITS.USER.FULL_NAME_MAX_LENGTH
         },
         bio: {
             type: String,

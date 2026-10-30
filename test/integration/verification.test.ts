@@ -252,6 +252,17 @@ describe('Email verification', () => {
             expect(mailer.to('legacy@example.com')).toHaveLength(1);
             expect((await verify('legacy@example.com', latestCode('legacy@example.com'))).statusCode).toBe(200);
         });
+
+        it('signs in accounts created before sessions were bound to the password (no passwordChangedAt)', async () => {
+            await register('older@example.com');
+            await User.collection.updateOne({ 'login.email': 'older@example.com' }, { $unset: { 'login.passwordChangedAt': '' } });
+
+            const res = await verify('older@example.com', latestCode('older@example.com'));
+            expect(res.statusCode).toBe(200);
+            expect((await request(app).get('/api/auth').set('x-auth-token', res.body.token)).statusCode).toBe(200);
+            const user = await dbUser('older@example.com');
+            expect(user.login.passwordChangedAt).toEqual(user.dateCreated);
+        });
     });
 
     describe('POST /api/auth/resend-verification', () => {

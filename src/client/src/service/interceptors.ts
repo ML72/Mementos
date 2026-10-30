@@ -16,8 +16,11 @@ export const AUTH_HEADER = 'x-auth-token';
 export interface AxiosInterceptorDeps {
     /** Current auth token, or null when signed out. Read per request, never cached. */
     getToken: () => string | null;
-    /** Signs the user out. Invoked at most once per dead token — see signOutOnInvalidToken. */
-    onTokenInvalid: () => void;
+    /**
+     * Signs the user out, given the API's reason when it sent one. Invoked at most once per dead
+     * token — see signOutOnInvalidToken.
+     */
+    onTokenInvalid: (message?: string) => void;
 }
 
 /**
@@ -43,15 +46,33 @@ export const attachAuthToken =
         return config;
     };
 
+/** The token a failed request went out with: whatever attachAuthToken stamped on it. */
+export const tokenSentWith = (error: unknown): string | null => {
+    const headers: any = (error as AxiosError | undefined)?.config?.headers;
+    // axios hands back an AxiosHeaders instance, whose `get` ignores case.
+    const token = typeof headers?.get === 'function' ? headers.get(AUTH_HEADER) : headers?.[AUTH_HEADER];
+    return typeof token === 'string' && token ? token : null;
+};
+
+/** The first message of an API error response (`{ errors: [{ msg }] }`), if it has one. */
+const firstApiMessage = (error: unknown): string | undefined => {
+    const msg = (error as AxiosError<{ errors?: { msg?: unknown }[] }> | undefined)
+        ?.response?.data?.errors?.[0]?.msg;
+    return typeof msg === 'string' && msg ? msg : undefined;
+};
+
 /** Response error handler: signs the user out when the API rejects the token. */
 export const signOutOnInvalidToken =
     ({ getToken, onTokenInvalid }: AxiosInterceptorDeps) =>
     (error: unknown): Promise<never> => {
-        // Only sign out if we still believe we are signed in. That check also collapses a burst
-        // of parallel requests failing on the same dead token into a single sign-out: the first
-        // one clears the token synchronously, so the rest fall straight through.
-        if (isTokenInvalidError(error) && getToken()) {
-            onTokenInvalid();
+        // Only when the token the API refused is still the one this tab holds. A request that went
+        // out under an older session (signed out and back in since, or a password change that
+        // swapped the token while it was in flight) says nothing about the current one. That also
+        // collapses a burst of parallel requests failing on the same dead token into a single
+        // sign-out: the first one replaces the token synchronously, so the rest no longer match.
+        const token = getToken();
+        if (isTokenInvalidError(error) && token && tokenSentWith(error) === token) {
+            onTokenInvalid(firstApiMessage(error));
         }
         // Always re-reject, so each call's own error handling (alerts, null returns) still runs.
         return Promise.reject(error);

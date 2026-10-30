@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import { useDispatch } from 'react-redux';
 import { setNewAlert } from '../../service/alert';
-import { login, register, SignInOutcome } from '../../service/auth';
+import { login, register, SignInOutcome, NEW_PASSWORD_HINT } from '../../service/auth';
 import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import CustomPage from '../../components/layout/CustomPage';
 
@@ -158,6 +158,7 @@ const Login: React.FC = () => {
                   type="password"
                   id="password"
                   autoComplete={isLogin ? 'current-password' : 'new-password'}
+                  helperText={isLogin ? undefined : NEW_PASSWORD_HINT}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   variant="outlined"

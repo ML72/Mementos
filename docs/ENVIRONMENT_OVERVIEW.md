@@ -127,11 +127,3 @@ A new template shows up in `email:preview` and `email:send` once it has a sample
 - **Existing accounts** were all created with `login.verified: false`, so each is asked to verify
   the next time it signs in (sessions already open are untouched). To exempt them instead:
   `db.users.updateMany({}, { $set: { 'login.verified': true } })` before deploying.
-- **Email is now stored and looked up lowercased.** An account whose stored address has uppercase
-  in it cannot sign in until it is normalized. Check for addresses that would collide, then
-  normalize once:
-
-  ```js
-  db.users.aggregate([{ $group: { _id: { $toLower: '$login.email' }, n: { $sum: 1 } } }, { $match: { n: { $gt: 1 } } }])
-  db.users.updateMany({}, [{ $set: { 'login.email': { $toLower: { $trim: { input: '$login.email' } } } } }])
-  ```
