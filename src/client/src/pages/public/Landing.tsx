@@ -67,6 +67,12 @@ const primaryButton = {
   '&:hover': { backgroundColor: '#333', boxShadow: 'none' }
 };
 
+/**
+ * Joins the last three words with no-break spaces, so however wide a card gets, its text never
+ * ends on a line of just one or two words.
+ */
+const keepLastWordsTogether = (text: string) => text.replace(/ (\S+) (\S+)$/, '\u00A0$1\u00A0$2');
+
 const scrollToSection = (id: string) => (event: React.MouseEvent) => {
   event.preventDefault();
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -216,7 +222,7 @@ const HeroPreview: React.FC = () => (
       </Stack>
       <Typography sx={{ fontWeight: 700, color: INK, fontSize: '1.05rem', mb: 0.75 }}>The spacing effect</Typography>
       <Typography sx={{ color: BODY, fontSize: '0.925rem', lineHeight: 1.6 }}>
-        We remember more when reviews are spread out over days than when they're crammed into one sitting.
+        {keepLastWordsTogether("We remember more when reviews are spread out over days than when they're crammed into one sitting, as Ebbinghaus found in 1885.")}
       </Typography>
       <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
         {['learning', 'memory'].map((tag) => <Chip key={tag} label={tag} size="small" sx={tagChip} />)}
@@ -259,12 +265,12 @@ const STEPS = [
   {
     icon: <EditNoteRoundedIcon />,
     title: 'Write it down',
-    text: 'Capture what you learned in a few lines. Markdown, LaTeX math and tags are built in.'
+    text: 'Capture what you learned in a few lines. Markdown, LaTeX math, code blocks and tags are all built in.'
   },
   {
     icon: <ReplayRoundedIcon />,
     title: 'It comes back',
-    text: 'Each note is scheduled for review: after about a day, then two, then four, spacing out as it sticks. Due notes wait for you in your feed.'
+    text: 'Each note returns on a spaced repetition schedule: after about a day, then two, then four, the gap doubling with each review. Due notes wait in your feed.'
   },
   {
     icon: <ForwardToInboxRoundedIcon />,
@@ -311,7 +317,7 @@ const FEATURES = [
   {
     icon: <GitHubIcon />,
     title: 'Open source',
-    text: 'Every line of code is public, so you can see exactly how it works.',
+    text: 'Every line of code is public, scheduling algorithm included, so you can see how it works.',
     link: { href: GITHUB_URL, label: 'View on GitHub' }
   }
 ];
@@ -415,7 +421,7 @@ const Landing: React.FC = () => {
           <SectionHeading
             eyebrow="How it works"
             title="You write it down. Mementos brings it back."
-            subtitle="No decks to build and no streaks to keep. Just your notes, and a schedule that does the remembering."
+            subtitle="AI models hold on to old skills by replaying past examples as they learn new ones. Mementos is a replay buffer for human memory, with no flashcard decks to build and no streaks to keep."
           />
           <Grid container spacing={3}>
             {STEPS.map((step, i) => (
@@ -428,7 +434,7 @@ const Landing: React.FC = () => {
                     <Box sx={{ color: '#9CA3AF', display: 'flex' }}>{step.icon}</Box>
                   </Stack>
                   <Typography component="h3" sx={{ fontSize: '1.2rem', fontWeight: 700, color: INK, mb: 1 }}>{step.title}</Typography>
-                  <Typography sx={{ color: BODY, lineHeight: 1.65 }}>{step.text}</Typography>
+                  <Typography sx={{ color: BODY, lineHeight: 1.65 }}>{keepLastWordsTogether(step.text)}</Typography>
                 </Box>
               </Grid>
             ))}
@@ -452,7 +458,7 @@ const Landing: React.FC = () => {
                       <Typography sx={{ fontSize: '0.75rem', color: MUTED }}>· {note.when}</Typography>
                     </Stack>
                     <Typography sx={{ fontWeight: 700, color: INK, mb: 0.5 }}>{note.subject}</Typography>
-                    <Typography sx={{ color: BODY, fontSize: '0.9rem', lineHeight: 1.6 }}>{note.text}</Typography>
+                    <Typography sx={{ color: BODY, fontSize: '0.9rem', lineHeight: 1.6 }}>{keepLastWordsTogether(note.text)}</Typography>
                     <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 1.75 }}>
                       <Stack direction="row" spacing={1}>
                         {note.tags.map((tag) => <Chip key={tag} label={tag} size="small" sx={tagChip} />)}
@@ -492,7 +498,7 @@ const Landing: React.FC = () => {
                     {feature.icon}
                   </Box>
                   <Typography component="h3" sx={{ fontSize: '1.05rem', fontWeight: 700, color: INK, mb: 0.75 }}>{feature.title}</Typography>
-                  <Typography sx={{ color: BODY, fontSize: '0.95rem', lineHeight: 1.6 }}>{feature.text}</Typography>
+                  <Typography sx={{ color: BODY, fontSize: '0.95rem', lineHeight: 1.6 }}>{keepLastWordsTogether(feature.text)}</Typography>
                   {feature.link && (
                     <Link
                       href={feature.link.href}
