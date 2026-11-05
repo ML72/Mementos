@@ -21,6 +21,7 @@ const VerifyEmail = lazyPage(() => import('./pages/public/VerifyEmail'));
 const ForgotPassword = lazyPage(() => import('./pages/public/ForgotPassword'));
 const ResetPassword = lazyPage(() => import('./pages/public/ResetPassword'));
 const About = lazyPage(() => import('./pages/public/About'));
+const TermsOfService = lazyPage(() => import('./pages/public/TermsOfService'));
 const HomePage = lazyPage(() => import('./pages/private/HomePage'));
 const PeoplePage = lazyPage(() => import('./pages/private/PeoplePage'));
 const ProfilePage = lazyPage(() => import('./pages/private/ProfilePage'));
@@ -28,7 +29,7 @@ const MyNotesPage = lazyPage(() => import('./pages/private/MyNotesPage'));
 const NoteEditorPage = lazyPage(() => import('./pages/private/NoteEditorPage'));
 const SettingsPage = lazyPage(() => import('./pages/private/SettingsPage'));
 
-const PUBLIC_PAGES = [Login, VerifyEmail, ForgotPassword, ResetPassword, About];
+const PUBLIC_PAGES = [Login, VerifyEmail, ForgotPassword, ResetPassword, About, TermsOfService];
 const ALL_PAGES = [...PUBLIC_PAGES, HomePage, PeoplePage, ProfilePage, MyNotesPage, NoteEditorPage, SettingsPage];
 
 // Download the other pages in the background once this one has loaded, so moving between pages
@@ -76,11 +77,10 @@ const App: React.FC = () => {
                 </PublicPage>
               }
             />
-            {/* Open when signed in too: Settings links here for a forgotten current password */}
             <Route
               path="/forgot-password"
               element={
-                <PublicPage restrictAuthenticated={false}>
+                <PublicPage>
                   <ForgotPassword />
                 </PublicPage>
               }
@@ -98,6 +98,14 @@ const App: React.FC = () => {
               element={
                 <PublicPage restrictAuthenticated={false}>
                   <About />
+                </PublicPage>
+              }
+            />
+            <Route
+              path="/terms"
+              element={
+                <PublicPage restrictAuthenticated={false}>
+                  <TermsOfService />
                 </PublicPage>
               }
             />

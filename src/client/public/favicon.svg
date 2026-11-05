@@ -1,9 +1,22 @@
-<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-<circle cx="100" cy="100" r="100" fill="url(#paint0_linear_36_13)"/>
-<defs>
-<linearGradient id="paint0_linear_36_13" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
-<stop stop-color="#D000FF"/>
-<stop offset="1" stop-color="#FFF1AD"/>
-</linearGradient>
-</defs>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <title>Mementos</title>
+  <!--
+    The memory curve as an M. A stroke rises to full strength and fades, thinning and warming from
+    violet to coral; the next stroke cuts in front of it at full strength and fades more slowly.
+    The second span (192 to 512) is twice the first (32 to 192), as the gap between reviews doubles.
+    Laid out at 32 units to the pixel of a 16px icon, so the stems stay sharp in a browser tab.
+    favicon.ico, apple-touch-icon.png and favicons/ are rendered from this file: redo them if it changes.
+  -->
+  <defs>
+    <linearGradient id="first-fade" gradientUnits="userSpaceOnUse" x1="64" y1="0" x2="128" y2="0">
+      <stop stop-color="#8B4DFF"/>
+      <stop offset="1" stop-color="#FF5A36"/>
+    </linearGradient>
+    <linearGradient id="second-fade" gradientUnits="userSpaceOnUse" x1="224" y1="0" x2="512" y2="0">
+      <stop stop-color="#8B4DFF"/>
+      <stop offset="1" stop-color="#FF5A36"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#first-fade)" d="M12 512A12 12 0 0 1 0 500V12A12 12 0 0 1 23.3 7.8C62.8 114.7 104.4 206.5 122.5 226.5Q128 232.3 128 240.3V300.5Q128 308.5 120.9 305C106 297.4 82.1 280.2 64 264.1V500A12 12 0 0 1 52 512Z"/>
+  <path fill="url(#second-fade)" d="M172 384A12 12 0 0 1 160 372V12A12 12 0 0 1 183.3 8C271.5 259 336.1 415.8 502.8 461.6Q512 464 512 474V501.4Q512 511.4 502.3 510C370 488.5 300.7 414 224 306.7V372A12 12 0 0 1 212 384Z"/>
 </svg>

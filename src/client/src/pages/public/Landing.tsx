@@ -18,7 +18,7 @@ const INK = '#111827';
 const BODY = '#4B5563';
 const MUTED = '#6B7280';
 const BORDER = '#E5E7EB';
-// The logo's magenta-to-warm gradient, deepened so text drawn with it stays readable on white.
+// The logo's violet-to-coral gradient, deepened so text drawn with it stays readable on white.
 const BRAND_GRADIENT = 'linear-gradient(90deg, #7C3AED 0%, #DB2777 55%, #EA580C 100%)';
 const GITHUB_URL = 'https://github.com/ML72/Mementos';
 const SIGN_UP = '/login?tab=signup';

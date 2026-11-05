@@ -210,7 +210,7 @@ class NotesService {
         try {
             const user = await User.findById(userId).populate({
                 path: 'likedNotes',
-                populate: { path: 'creator', select: 'login.email profile.fullName' }
+                populate: { path: 'creator', select: 'profile.fullName' }
             });
 
             if (!user) return { success: false, error: 'User not found' };
