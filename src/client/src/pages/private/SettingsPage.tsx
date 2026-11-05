@@ -143,7 +143,7 @@ const SettingsPage: React.FC = () => {
   };
 
   return (
-    <CustomPage showNavigation={true} useBindingContainer={false}>
+    <CustomPage title="Settings" showNavigation={true} useBindingContainer={false}>
       <Box sx={{ backgroundColor: '#F9FAFB', minHeight: 'calc(100vh - 65px)', pt: { xs: 4, md: 6 }, pb: 8 }}>
         <Container maxWidth="sm">
           <Typography variant="h4" sx={{ fontWeight: 800, color: '#111827', mb: 4 }}>

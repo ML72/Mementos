@@ -9,10 +9,11 @@ import {
   Stack,
   Link
 } from '@mui/material';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import { setNewAlert } from '../../service/alert';
 import { forgotPassword, resetPassword, NEW_PASSWORD_HINT } from '../../service/auth';
+import { RootState } from '../../store/store';
 import CustomPage from '../../components/layout/CustomPage';
 
 // Mirror EMAIL.PASSWORD_RESET in src/server/settings.ts (the client cannot import server code).
@@ -30,6 +31,7 @@ const ResetPassword: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
 
   const [email, setEmail] = useState(new URLSearchParams(location.search).get('email') || '');
   const [code, setCode] = useState('');
@@ -75,7 +77,7 @@ const ResetPassword: React.FC = () => {
   };
 
   return (
-    <CustomPage showNavigation={true} useBindingContainer={false}>
+    <CustomPage title="Reset password" showNavigation={true} useBindingContainer={false}>
       <Box sx={{ backgroundColor: '#F9FAFB', minHeight: 'calc(100vh - 65px)', pt: { xs: 8, md: 16 }, pb: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <Container maxWidth="xs" sx={{ mt: 0 }}>
           <Box sx={{ mb: 4, textAlign: 'center' }}>
@@ -179,8 +181,8 @@ const ResetPassword: React.FC = () => {
           </Paper>
 
           <Box sx={{ mt: 3, textAlign: 'center' }}>
-            <Link component={RouterLink} to="/login" underline="hover" sx={{ fontSize: '0.9rem', color: '#4B5563', fontWeight: 500 }}>
-              Back to sign in
+            <Link component={RouterLink} to={isAuthenticated ? '/settings' : '/login'} underline="hover" sx={{ fontSize: '0.9rem', color: '#4B5563', fontWeight: 500 }}>
+              {isAuthenticated ? 'Back to settings' : 'Back to sign in'}
             </Link>
           </Box>
         </Container>

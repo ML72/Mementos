@@ -9,7 +9,7 @@ import GitHubIcon from '@mui/icons-material/GitHub';
 
 const About: React.FC = () => {
   return (
-    <CustomPage showNavigation={true} useBindingContainer={false}>
+    <CustomPage title="About" showNavigation={true} useBindingContainer={false}>
       <Box sx={{ backgroundColor: '#ffffff', minHeight: '100vh', pb: 10 }}>
         {/* Header Section */}
         <Container maxWidth="md" sx={{ pt: { xs: 8, md: 12 }, pb: { xs: 6, md: 8 }, textAlign: 'center' }}>

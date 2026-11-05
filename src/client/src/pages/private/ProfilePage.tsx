@@ -87,7 +87,7 @@ const ProfilePage: React.FC = () => {
   };
 
   return (
-    <CustomPage showNavigation={true} useBindingContainer={false}>
+    <CustomPage title="Profile" showNavigation={true} useBindingContainer={false}>
       <Box sx={{ backgroundColor: '#F9FAFB', minHeight: 'calc(100vh - 65px)', pt: { xs: 4, md: 6 }, pb: 8 }}>
         <Container maxWidth="md">
           

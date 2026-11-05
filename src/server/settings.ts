@@ -15,7 +15,16 @@ const MONGO_URI: string = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/de
 
 // Security settings
 const JWT_SECRET: string = process.env.JWT_SECRET || "im-so-secret!";
-const SECURITY_CSP: string = process.env.SECURITY_CSP || "default-src 'self'; script-src 'self' 'unsafe-eval'; frame-src 'self'; style-src 'self' 'unsafe-inline'; img-src * data:; font-src * data:";
+const DEFAULT_CSP: string = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-eval' https://www.googletagmanager.com https://tagmanager.google.com https://www.googleadservices.com https://www.google.com",
+    "connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.google.com https://*.g.doubleclick.net https://ad.doubleclick.net https://pagead2.googlesyndication.com https://www.googleadservices.com https://*.merchant-center-analytics.goog",
+    "frame-src 'self' https://www.googletagmanager.com https://*.fls.doubleclick.net",
+    "style-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://tagmanager.google.com https://fonts.googleapis.com",
+    "img-src * data:",
+    "font-src * data:"
+].join('; ');
+const SECURITY_CSP: string = process.env.SECURITY_CSP || DEFAULT_CSP;
 const SECURITY_CORS_WHITELIST: string = process.env.SECURITY_CORS_WHITELIST || (NODE_ENV === 'development' ? 'http://localhost:3000;http://localhost:5173' : '');
 const WWW_REDIRECT_HOST: string = process.env.WWW_REDIRECT_HOST || '';
 

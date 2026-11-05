@@ -73,7 +73,7 @@ const Login: React.FC = () => {
   };
 
   return (
-    <CustomPage showNavigation={true} useBindingContainer={false}>
+    <CustomPage title={isLogin ? 'Sign in' : 'Sign up'} showNavigation={true} useBindingContainer={false}>
       <Box sx={{ backgroundColor: '#F9FAFB', minHeight: 'calc(100vh - 65px)', pt: { xs: 8, md: 16 }, pb: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <Container maxWidth="xs" sx={{ mt: 0 }}>
           <Box sx={{ mb: 4, textAlign: 'center' }}>
@@ -215,6 +215,19 @@ const Login: React.FC = () => {
                 >
                   {isLogin ? 'Sign In' : 'Sign Up'}
                 </Button>
+                {!isLogin && (
+                  // New tabs, so reading these doesn't lose what's been typed into the form
+                  <Typography variant="body2" sx={{ color: '#6B7280', textAlign: 'center' }}>
+                    By creating an account, you agree to the Mementos{' '}
+                    <Link component={RouterLink} to="/terms" target="_blank" rel="noopener" sx={{ color: '#111827', fontWeight: 500 }}>
+                      Terms of Service
+                    </Link>
+                    {' '}and{' '}
+                    <Link component={RouterLink} to="/terms#privacy" target="_blank" rel="noopener" sx={{ color: '#111827', fontWeight: 500 }}>
+                      Privacy Policy
+                    </Link>.
+                  </Typography>
+                )}
               </Stack>
             </Box>
           </Paper>

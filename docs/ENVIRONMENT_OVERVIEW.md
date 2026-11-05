@@ -22,7 +22,7 @@ For deployment-specific guidance (Azure App Service, custom domains), see
 | `PORT` | No | `3000` | Port the API listens on. |
 | `MONGO_URI` | Prod | `mongodb://127.0.0.1:27017/dev` | MongoDB connection string. |
 | `JWT_SECRET` | Prod | `im-so-secret!` | Secret used to sign JWTs. **Set a strong value in production.** |
-| `SECURITY_CSP` | No | (sensible default) | Content-Security-Policy header value. |
+| `SECURITY_CSP` | No | (sensible default) | Content-Security-Policy header value. A custom value has to keep the default's Google hosts, or analytics stops working. |
 | `SECURITY_CORS_WHITELIST` | No | dev: localhost; prod: empty | `;`-separated list of allowed origins. Empty ⇒ same-origin only. |
 | `WWW_REDIRECT_HOST` | No | (empty) | Apex domain to 301-redirect to its `www` subdomain. Links in emails then go to that `www` host. See deployment doc. |
 

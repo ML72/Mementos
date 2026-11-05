@@ -209,7 +209,7 @@ class FeedService {
 
             // Record impressions, then populate creators for just the served page.
             await this.recordServed(userId, page, recentlySeen, nowMs);
-            await Note.populate(page, { path: 'creator', select: 'login.email profile.fullName' });
+            await Note.populate(page, { path: 'creator', select: 'profile.fullName' });
 
             return { success: true, notes: page, hasMore };
         } catch (error: any) {
