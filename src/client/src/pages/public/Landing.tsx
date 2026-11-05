@@ -324,7 +324,7 @@ const FEATURES = [
 
 const Landing: React.FC = () => {
   return (
-    <CustomPage useBindingContainer={false} showNavigation={true}>
+    <CustomPage title="Notes that come back to you" useBindingContainer={false} showNavigation={true}>
       {/* Hero */}
       <Box
         component="section"

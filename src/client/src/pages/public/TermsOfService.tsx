@@ -53,7 +53,7 @@ const TermsOfService: React.FC = () => {
   }, [hash]);
 
   return (
-    <CustomPage showNavigation={true} useBindingContainer={false}>
+    <CustomPage title="Terms of Service and Privacy Policy" showNavigation={true} useBindingContainer={false}>
       <Box sx={{ backgroundColor: '#ffffff', minHeight: '100vh', pb: 10 }}>
         <Container maxWidth="md" sx={{ pt: { xs: 6, md: 10 } }}>
           <Typography variant="h1" sx={{ fontSize: { xs: '2rem', md: '2.75rem' }, fontWeight: 800, color: INK, letterSpacing: '-1px', mb: 1 }}>
@@ -156,9 +156,10 @@ const TermsOfService: React.FC = () => {
 
           <Section title="Source code and brand">
             <Paragraph>
-              The Mementos source code is licensed under the MIT License. That license covers the code, and these
-              terms cover the service we run at mementos.info. Neither gives you the right to use the Mementos name
-              or logo as your own brand.
+              Mementos is open source: the code is on{' '}
+              <ExternalLink href="https://github.com/ML72/Mementos">GitHub</ExternalLink> under the MIT License. That
+              license covers the code, and these terms cover the service we run at mementos.info. Neither gives you
+              the right to use the Mementos name or logo as your own brand.
             </Paragraph>
           </Section>
 

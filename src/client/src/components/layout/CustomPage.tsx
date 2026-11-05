@@ -1,18 +1,25 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { Container, Box, GlobalStyles } from '@mui/material';
 
 import Alert from './Alert';
 import Navbar from './Navbar';
+import { startAnalytics } from '../../service/analytics';
 
 interface ComponentProps {
+  title: string; // The page's name, shown as "Mementos | <title>" in the tab and in Google Analytics
   useBindingContainer?: boolean;
   showNavigation?: boolean; // We can use this to hide navbar entirely if needed
   children?: ReactNode;
 }
 
-const CustomPage: React.FC<ComponentProps> = ({ useBindingContainer = true, showNavigation = true, children = [] }: ComponentProps) => {
-  
+const CustomPage: React.FC<ComponentProps> = ({ title, useBindingContainer = true, showNavigation = true, children = [] }: ComponentProps) => {
+
+  useEffect(() => {
+    document.title = `Mementos | ${title}`;
+    startAnalytics();
+  }, [title]);
+
   const theme: any = createTheme({
     palette: {
       primary: {

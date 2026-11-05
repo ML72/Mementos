@@ -70,7 +70,7 @@ const HomePage: React.FC = () => {
   };
 
   return (
-    <CustomPage showNavigation={true} useBindingContainer={false}>
+    <CustomPage title="Home" showNavigation={true} useBindingContainer={false}>
       <Box sx={{ backgroundColor: '#F9FAFB', minHeight: 'calc(100vh - 65px)', pt: { xs: 4, md: 6 }, pb: 8 }}>
         <Container maxWidth="lg">
           <Grid container spacing={4}>

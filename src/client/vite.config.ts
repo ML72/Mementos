@@ -1,23 +1,9 @@
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-
-// Puts Google Tag Manager in production builds only, so `npm run dev` doesn't count as traffic
-const googleTagManager: Plugin = {
-  name: 'google-tag-manager',
-  apply: 'build',
-  transformIndexHtml: () => [
-    {
-      tag: 'script',
-      attrs: { async: true, src: 'https://www.googletagmanager.com/gtm.js?id=GTM-TJ7HT245' },
-      injectTo: 'head-prepend'
-    },
-    { tag: 'script', attrs: { async: true, src: '/gtm_init.js' }, injectTo: 'head-prepend' }
-  ]
-}
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), googleTagManager],
+  plugins: [react()],
   server: {
     proxy: {
       '/api': {

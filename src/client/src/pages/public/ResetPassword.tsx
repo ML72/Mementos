@@ -77,7 +77,7 @@ const ResetPassword: React.FC = () => {
   };
 
   return (
-    <CustomPage showNavigation={true} useBindingContainer={false}>
+    <CustomPage title="Reset password" showNavigation={true} useBindingContainer={false}>
       <Box sx={{ backgroundColor: '#F9FAFB', minHeight: 'calc(100vh - 65px)', pt: { xs: 8, md: 16 }, pb: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <Container maxWidth="xs" sx={{ mt: 0 }}>
           <Box sx={{ mb: 4, textAlign: 'center' }}>
