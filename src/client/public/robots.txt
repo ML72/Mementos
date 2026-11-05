@@ -1,0 +1,14 @@
+# Public pages are open to crawlers. These need an account or are steps of signing in, so they have
+# nothing to index. Rules match by prefix, so /notes also covers /notes/new.
+User-agent: *
+Disallow: /api/
+Disallow: /home
+Disallow: /notes
+Disallow: /people
+Disallow: /profile
+Disallow: /settings
+Disallow: /verify-email
+Disallow: /forgot-password
+Disallow: /reset-password
+
+Sitemap: https://www.mementos.info/sitemap.xml
